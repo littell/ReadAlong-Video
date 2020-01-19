@@ -1,6 +1,7 @@
 from collections import defaultdict 
 
 import os
+import argparse
 #import math 
 from lxml import etree as et 
 
@@ -9,9 +10,9 @@ from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPM
 from reportlab.pdfbase.pdfmetrics import registerFont, stringWidth
 
-from svg_snapshot import get_snapshot
+from svg_snapshot import SnapshotSVG
 
-FRAMES_PER_SECOND = 24
+FRAMES_PER_SECOND = 60
 SCREEN_WIDTH_480P = 720
 SCREEN_WIDTH_480P = 480
 SCREEN_WIDTH_HD = 1920
@@ -54,7 +55,7 @@ def make_test_svg(width = SCREEN_WIDTH_HD, height=SCREEN_HEIGHT_HD):
     return root
 
 
-def main():
+def main(input_filename, output_filename):
 
     #path = [(100,100),(100,200),(200,200),(200,100)]
 
@@ -68,15 +69,17 @@ def main():
 
     #image.save()
 
-    tree = et.parse('temp.svg')
+    tree = et.parse(input_filename)
     clips = []
 
     video_length = 4.0   # in seconds
     frame_duration = 1.0 / FRAMES_PER_SECOND
     current_length = 0
 
+    snapshot_svg = SnapshotSVG(tree)
+
     while current_length < video_length:
-        frozen_svg = get_snapshot(tree, current_length)
+        frozen_svg = snapshot_svg[current_length]
         tempfile_basename = "temp/temp"
         save_xml(tempfile_basename + ".svg", frozen_svg)
         drawing = svg2rlg(tempfile_basename + ".svg")
@@ -85,8 +88,13 @@ def main():
         current_length += frame_duration
 
     concat_clip = mp.concatenate_videoclips(clips, method="compose")
-    concat_clip.write_videofile("test.mp4", fps=24)
+    concat_clip.write_videofile(output_filename, fps=24)
 
 
-main()
-
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Render an SVG animation to MP4 movie')
+    parser.add_argument('input', type=str, help='Input .svg file')
+    parser.add_argument('output', type=str, help='Output .mp4 file')
+    args = parser.parse_args()
+    main(args.input, args.output)

@@ -1,14 +1,20 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <svg baseProfile="full" height="480" version="1.1" width="720" xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink">
     <defs />
-    <rect id="RectElement" x="300" y="100" width="300" height="100"
-                        fill="rgb(255,255,0)"  >    
+    <rect id="RectElement" x="100" y="100" width="30" height="10"
+                        fill="rgb(0,99,0)">    
+
+        <!--<animateMotion begin="1s" dur="3s" repeatCount="indefinite" rotate="auto"
+            path="M 10,30 A 20,20 0,0,1 50,30 A 20,20 0,0,1 90,30 Q 90,60 50,90 Q 10,60 10,30 z" />
+        -->
+
         <animate attributeName="x" attributeType="XML"
              begin="0s" dur="4s" fill="freeze" from="300" to="0" />
         
         <animate attributeName="y" attributeType="XML"
              begin="0s" dur="4s" fill="freeze" from="100" to="0" />
-        
+
+        <!--
         <animateTransform attributeName="transform" 
             begin="0s" dur="1s" from="0 150 150" id="polygon" 
             repeatDur="2.5s" to="360 150 150" type="rotate" fill="freeze" />
@@ -19,7 +25,7 @@
 
         <set attributeName="fill" attributeType="CSS"
            to="rgb(128,128,0)"
-           begin="2.5s" dur="0.2s" />
+           begin="2.5s" dur="0.2s" />-->
 
     </rect>
     <text id="text" x="150" y="30">rectangle1<animateColor attributeName="fill" attributeType="XML" dur="4s" from="green" id="text" repeatCount="indefinite" to="red" /></text>

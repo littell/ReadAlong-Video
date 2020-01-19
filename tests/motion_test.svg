@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg baseProfile="full" height="480" version="1.1" width="720" xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs />
+    <rect id="RectElement" x="100" y="100" width="20" height="10"
+                        fill="rgb(0,99,0)" transform="translate(-100, -100)">    
+        <animateMotion begin="1s" dur="3s" repeatCount="indefinite" rotate="auto"
+            path="M 10,30 A 20,20 0,0,1 50,30 A 20,20 0,0,1 90,30 Q 90,60 50,90 Q 10,60 10,30 z" />
+        
+    </rect>
+</svg>
