@@ -2,7 +2,6 @@ from collections import defaultdict
 
 import os
 import argparse
-#import math 
 from lxml import etree as et 
 
 import moviepy.editor as mp
@@ -56,18 +55,6 @@ def make_test_svg(width = SCREEN_WIDTH_HD, height=SCREEN_HEIGHT_HD):
 
 
 def main(input_filename, output_filename):
-
-    #path = [(100,100),(100,200),(200,200),(200,100)]
-
-    #image = svgwrite.Drawing('temp.svg',size=(300,300))
-
-    #rectangle = image.add(image.polygon(path,id ='polygon',stroke="black",fill="white"))
-    #rectangle.add(image.animateTransform("translate","transform",id="polygon", from_="0 0", to="200 400",dur="4s",begin="0s",repeatCount="1"))
-    #rectangle.add(image.animateTransform("rotate","transform",id="polygon", from_="0 150 150", to="360 150 150",dur="4s",begin="0s",repeatCount="1"))
-    #text = image.add(image.text('rectangle1',insert=(150,30),id="text"))
-    #text.add(image.animateColor("fill", attributeType="XML",from_="green", to="red",id="text", dur="4s",repeatCount="indefinite"))
-
-    #image.save()
 
     tree = et.parse(input_filename)
     clips = []

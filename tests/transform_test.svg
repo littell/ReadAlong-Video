@@ -7,9 +7,10 @@
         <animateTransform attributeName="transform" 
             begin="0s" dur="3s" from="0 200"
                  to="200 0" type="translate"/>
-        <animateTransform attributeName="transform" 
-            begin="0s" dur="1s" from="0 50 50" 
-            repeatDur="2.1s" to="360 50 50" type="rotate" fill="freeze" />
                  
     </rect>
+
+    <animateTransform attributeName="transform" 
+        begin="0s" dur="1s" from="0 50 50" xlink:href="#RectElement"
+        repeatDur="2.1s" to="360 50 50" type="rotate" fill="freeze" />
 </svg>

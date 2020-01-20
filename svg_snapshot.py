@@ -48,6 +48,11 @@ from lxml import etree as et
 from svg.path import parse_path
 
 NAMESPACE_PREFIX = '{http://www.w3.org/2000/svg}'
+XLINK_NAMESPACE = '{http://www.w3.org/1999/xlink}'
+HREF_TAG = XLINK_NAMESPACE + "href"
+MPATH_TAG = "mpath"
+MPATH_TAGS = [ NAMESPACE_PREFIX + MPATH_TAG, MPATH_TAG ]
+
 ANIMATE_TRANSFORM_TAG = 'animateTransform'
 ANIMATE_TRANSFORM_TAGS = [ ANIMATE_TRANSFORM_TAG, NAMESPACE_PREFIX + ANIMATE_TRANSFORM_TAG]
 ANIMATE_TAG = 'animate'
@@ -119,24 +124,32 @@ def interpolate_values(s1, s2, pos):
     return "".join(results)
 
 
+def xpath_id(svg, id):
+    
+    query = './/*[@id="' + id + '"]'
+    targets = svg.xpath(query)
+    if not targets:
+        raise Exception("No elements found with id=%s" % id)
+    if len(targets) > 1:
+        raise Exception("Multiple elements found with id=%s" % id)
+    return targets[0]
+
+
 class Animator:
 
     def __init__(self, elem, target_id=""):
         self.elem = elem
-        self.target_id = target_id 
         self.begin = parse_time(elem.attrib["begin"])
         self.dur = parse_time(elem.attrib["dur"])
         self.fill = self.elem.attrib.get("fill", "")
 
-    def get_target(self, svg):
-        
-        query = './/*[@id="' + self.target_id + '"]'
-        targets = svg.xpath(query)
-        if not targets:
-            raise Exception("No elements found with id=%s" % self.target_id)
-        if len(targets) > 1:
-            raise Exception("Multiple elements found with id=%s" % self.target_id)
-        return targets[0]
+        if HREF_TAG in elem.attrib and elem.attrib[HREF_TAG].startswith("#"):
+            self.target_id = elem.attrib[HREF_TAG].lstrip("#")
+        else:
+            self.target_id = target_id 
+
+    def get_target(self, svg, ):
+        return xpath_id(svg, self.target_id)
 
     def get_time_position(self, t):
         """ Returns how far along in this animation element is time t, as a
@@ -215,10 +228,20 @@ class MotionAnimator(Animator):
     def __init__(self, elem, target_id):
         Animator.__init__(self, elem, target_id)
 
-        if "path" not in elem.attrib:
-            raise Exception("Only animateMotion elements with a path attribute are currently supported.")
-    
-        self.path = parse_path_str(elem.attrib["path"])
+        self.path = None
+        self.path_id = ""
+
+        if "path" in elem.attrib:
+            self.path = parse_path_str(elem.attrib["path"])
+        else:
+            for child in elem:
+                if child.tag not in MPATH_TAGS:
+                    continue
+                if HREF_TAG not in child.attrib:
+                    continue 
+                self.path_id = child.attrib[HREF_TAG].lstrip("#")
+                break
+
         self.attrib_rotate = elem.attrib.get("rotate", "")
 
     
@@ -229,7 +252,16 @@ class MotionAnimator(Animator):
         if (time_position < 0):
             return
 
-        point = self.path.point(time_position)
+        if self.path:
+            path = self.path
+        else:
+            path_node = xpath_id(svg, self.path_id)
+            if "d" not in path_node.attrib:
+                raise Exception("Target of mpath href must have a 'd' attribute.")
+            path = parse_path_str(path_node.attrib["d"])
+        
+        point = path.point(time_position)
+
         current_x = float(target.attrib.get("x", 0.0))
         current_y = float(target.attrib.get("y", 0.0))
         value_x = "{:.3f}".format(current_x + point.real)
@@ -239,11 +271,11 @@ class MotionAnimator(Animator):
 
         if self.attrib_rotate in ["auto", "auto-reverse"]:
             if time_position > 0.999:  # don't want nonsense values if we're at the end,
-                current_point = self.path.point(0.999)            # so back up a weee bit
+                current_point = path.point(0.999)            # so back up a weee bit
                 next_point = point
             else:
                 current_point = point
-                next_point = self.path.point(time_position + 0.001)
+                next_point = path.point(time_position + 0.001)
             angle = math.atan2(next_point.imag - current_point.imag, next_point.real - current_point.real)
             angle = math.degrees(angle)
             if self.attrib_rotate == "auto-reverse":
