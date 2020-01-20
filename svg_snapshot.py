@@ -7,6 +7,14 @@
 # very limited class of SVG documents, for the purposes of
 # rendering to a video frame.
 #
+# An SVG animation is potentially quite complex, but for the purposes of animation,
+# it mostly consists of declarations of paths through a conceptual space
+# (whether that be coordinate space, color space, etc.) that an object or 
+# attribute will travel through beginning at a particular start time and
+# continuing for a particular duration (and possibly repeating).  Taking
+# a "snapshot" of an SVG at a particular point in time is thus mostly 
+# a question of interpolation.  
+#
 # Since the SVG animation standard is pretty large, this only
 # supports some parts of it that we'll need. 
 #
@@ -28,14 +36,19 @@
 #   something, the only interpolation supported is linear.)
 #
 # * It doesn't support additive animation.  (This is possibly worth
-#   supporting, it wouldn't be too hard, we're just not using it for anything
-#
-# * xlink:href-type attributes aren't resolved, so only animations nested 
-#   in their target element are supported, and for animateMotion the path 
-#   needs to be in the "path" attribute.  
+#   supporting, it wouldn't be too hard, we're just not using it for anything.)
 #
 # * animateColor is not supported, being deprecated in the SVG standard
 #   since v1.1.
+#
+# Issues due to missing pieces in the svglib SVG rendering library:
+#
+# * The "opacity" attribute is unsupported (but fill-opacity and stroke-
+#   opacity are).
+#
+# * No support for gradients
+#
+# * Limited support for masking
 #
 #################
 
@@ -67,12 +80,16 @@ ANIMATION_TAGS = ANIMATE_TRANSFORM_TAGS + ANIMATE_TAGS + SET_TAGS + MOTION_TAGS
 PATH_CACHE = {}
 
 def parse_path_str(path_str):
+    """ Convenience function for path parsing; caches because path parsing
+        can be expensive """
+
     if path_str not in PATH_CACHE:
         PATH_CACHE[path_str] = parse_path(path_str, 1e-3)
     return PATH_CACHE[path_str]
 
 
 def parse_time(timestamp):
+    """ Parses timestamps like 12:34.56 and 2s into seconds """
 
     if ":" in timestamp:
         parts = timestamp.split(":")
@@ -93,13 +110,13 @@ def parse_time(timestamp):
 
     return float(timestamp)
 
-def parse_transform_arg_string(s):
-    nums = s.split(" ")
-    return [float(n) for n in nums]
-
 NUMBER_SPLITTER = re.compile(r'([-+]?\d*\.?\d+|[-+]?\d+)')
 
 def interpolate_value_token(s1, s2, pos):
+    """ If the values are floats, returns the linear interpolation of them
+        at position pos.  If they're strings, but the same, returns the string.
+        If they're different, raises an exception. """
+
     v1, v2 = 0.0, 0.0
     try:
         v1 = float(s1)
@@ -113,6 +130,9 @@ def interpolate_value_token(s1, s2, pos):
 
 
 def interpolate_values(s1, s2, pos):
+    """ Takes two strings representing values, like "150 150" and "0 0", or
+        "rgb(255,255,0)" and "rgb(255,255,100)", and returns an interpolated version
+        like "75 75" or "rgb(255, 255, 50)".  Only linear interpolation is supported. """
 
     parts1 = NUMBER_SPLITTER.split(s1)
     parts2 = NUMBER_SPLITTER.split(s2)
@@ -125,7 +145,8 @@ def interpolate_values(s1, s2, pos):
 
 
 def xpath_id(svg, id):
-    
+    """ Convenience function for finding an xml element with a particular id """
+
     query = './/*[@id="' + id + '"]'
     targets = svg.xpath(query)
     if not targets:
@@ -136,6 +157,9 @@ def xpath_id(svg, id):
 
 
 class Animator:
+    """ Abstract base class of the various animator objects, which interpret animation
+        tags like <animate>, <animateTransform>, etc.  Handles parsing of the basic attributes
+        and time calculations that are common to all the animation tags. """
 
     def __init__(self, elem, target_id=""):
         self.elem = elem
@@ -198,7 +222,7 @@ class Animator:
         return time_position
 
 class TransformAnimator(Animator):
-
+    """ Interprets the <animateTransform> element """
     def __init__(self, elem, target_id):
         Animator.__init__(self, elem, target_id)
         self.attrib_name = elem.attrib["attributeName"]
@@ -224,7 +248,7 @@ class TransformAnimator(Animator):
             target.attrib[self.attrib_name] = result
 
 class MotionAnimator(Animator):
-
+    """ Interprets the <animateMotion> element """
     def __init__(self, elem, target_id):
         Animator.__init__(self, elem, target_id)
 
@@ -288,6 +312,7 @@ class MotionAnimator(Animator):
                 target.attrib["transform"] = rotate_str
 
 class StaticValueAnimator(Animator):
+    """ Interprets the <set> element """
 
     def __init__(self, elem, target_id):
         Animator.__init__(self, elem, target_id)
@@ -305,6 +330,7 @@ class StaticValueAnimator(Animator):
 
         
 class ValueAnimator(Animator):
+    """ Interprets the <animate> element """
 
     def __init__(self, elem, target_id):
         Animator.__init__(self, elem, target_id)
