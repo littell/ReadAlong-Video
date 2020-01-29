@@ -7,7 +7,7 @@
 # very limited class of SVG documents, for the purposes of
 # rendering to a video frame.
 #
-# An SVG animation is potentially quite complex, but for the purposes of animation,
+# An SVG animation is potentially quite complex, but 
 # it mostly consists of declarations of paths through a conceptual space
 # (whether that be coordinate space, color space, etc.) that an object or 
 # attribute will travel through beginning at a particular start time and
@@ -50,6 +50,12 @@
 #
 # * Limited support for masking
 #
+# * It doesn't appear that image elements from an external URL (e.g. 
+#   a PNG file) actually work in svglib.  If you need raster images, use
+#   a base64 string, e.g. xlink:href="data:image/png;base64,iVBORw0..."
+#   Currently I can only get PNGs working this way; I don't know if 
+#   that's a problem on my side or theirs.
+#
 #################
 
 import math
@@ -59,6 +65,8 @@ import numpy as np
 from copy import deepcopy
 from lxml import etree as et 
 from svg.path import parse_path
+
+from util import parse_time
 
 NAMESPACE_PREFIX = '{http://www.w3.org/2000/svg}'
 XLINK_NAMESPACE = '{http://www.w3.org/1999/xlink}'
@@ -87,28 +95,6 @@ def parse_path_str(path_str):
         PATH_CACHE[path_str] = parse_path(path_str, 1e-3)
     return PATH_CACHE[path_str]
 
-
-def parse_time(timestamp):
-    """ Parses timestamps like 12:34.56 and 2s into seconds """
-
-    if ":" in timestamp:
-        parts = timestamp.split(":")
-        result = float(parts[-1])
-        if len(parts) >= 2:
-            result += float(parts[-2]) * 60
-        if len(parts) >= 3:
-            result += float(parts[-3]) * 3600 
-        return result
-    elif timestamp.endswith("s"):
-        return float(timestamp[:-1])
-    elif timestamp.endswith("ms"):
-        return float(timestamp[:-2]) / 1000
-    elif timestamp.endswith("min"):
-        return float(timestamp[:-3]) * 60
-    elif timestamp.endswith("h"):
-        return float(timestamp[:-1]) * 3600
-
-    return float(timestamp)
 
 NUMBER_SPLITTER = re.compile(r'([-+]?\d*\.?\d+|[-+]?\d+)')
 
@@ -195,7 +181,7 @@ class Animator:
         """
 
         time_since_begin = t - self.begin
-        if time_since_begin < 0:
+        if time_since_begin < 0 or self.dur <= 0.0:
             return -1
 
         cycles_since_begin = math.floor(time_since_begin / self.dur) + 1
@@ -370,11 +356,12 @@ def get_animators(elem):
 
     animators = []
     
-    if "id" not in elem.attrib:
-        elem.attrib["id"] = "svgSnapshotElement" + str(id)
 
     for child in list(elem):
-        if child.tag in ANIMATION_TAGS:
+        if child.tag in ANIMATION_TAGS: 
+            if "id" not in elem.attrib:
+                elem.attrib["id"] = "svgSnapshotElement" + str(NUM_IDS)
+                NUM_IDS += 1
             elem.remove(child)
             animator = make_animator(child, elem.attrib["id"])
             animators.append(animator)
@@ -386,11 +373,11 @@ def get_animators(elem):
 class SnapshotSVG:
 
     def __init__(self, svg):
-        self.svg = svg 
-        self.animators = get_animators(svg.getroot())
+        self.svg = svg if isinstance(svg, et._Element) else svg.getroot()
+        self.animators = get_animators(self.svg)
 
     def __getitem__(self, t):
-        result = deepcopy(self.svg.getroot())
+        result = deepcopy(self.svg)
         for animator in self.animators:
             animator.apply(result, t)
         return result
