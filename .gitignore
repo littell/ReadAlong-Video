@@ -120,11 +120,6 @@ venv.bak/
 # mkdocs documentation
 /site
 
-# ReadAlong-Video-specific exclusions
-temp/
-.mp4
-images/originals/
-
 # mypy
 .mypy_cache/
 .dmypy.json
@@ -132,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# ReadAlong-Video-specific exclusions
+temp/
+.mp4
+images/originals/
