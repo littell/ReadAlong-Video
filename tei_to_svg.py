@@ -6,6 +6,8 @@ import logging
 from util import save_xml, parse_time, xpath_default
 
 from reportlab.pdfbase.pdfmetrics import registerFont, stringWidth, getAscent
+from reportlab.pdfbase.ttfonts import TTFont
+registerFont(TTFont('NotoSans','./fonts/Noto_Sans_400.ttf'))
 
 ###################################################################################################
 #
@@ -458,11 +460,6 @@ class Slideshow(RASVComponent):
             break
         return result
 
-from reportlab.pdfbase.pdfmetrics import registerFont, stringWidth
-from reportlab.pdfbase.ttfonts import TTFont
-
-registerFont(TTFont('Arial','arial.ttf'))
-registerFont(TTFont('NotoSans','Noto_Sans_400.ttf'))
 
 def add_timestamps(smil_path, slideshow):
     """ Takes a SMIL file and returns a list of SVG animation elements (e.g.

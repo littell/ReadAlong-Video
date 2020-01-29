@@ -23,6 +23,10 @@ SCREEN_WIDTH_HD = 1920
 SCREEN_HEIGHT_HD = 1080
 FRAMES_PER_CHUNK = 200
 
+registerFont(TTFont('NotoSans','./fonts/Noto_Sans_400.ttf'))
+_registered_fonts['NotoSans'] = True
+
+
 NUM_MOVIE_CHUNKS = 0
 def write_movie_chunk(clips, background_filename, fps):
     global NUM_MOVIE_CHUNKS
@@ -40,8 +44,6 @@ def svg_to_mp4(svg_tree,
                 output_filename,
                 fps=FRAMES_PER_SECOND):
 
-    registerFont(TTFont('NotoSans','./Noto_Sans_400.ttf'))
-    _registered_fonts['NotoSans'] = True
     clips = []
 
     audio_clip = mp.AudioFileClip(audio_filename)
