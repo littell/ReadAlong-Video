@@ -1,1 +1,1 @@
-CALL py -3 -m tei_to_mp4 ..\ReadAlong-Samples\alq\pig\wmg-syll.xml ..\ReadAlong-Samples\alq\pig\wmg-syll.smil ..\ReadAlong-Samples\alq\pig\wmg-syll.mp3 images\bg-wood-1080.png output.mp4
+CALL py -3 -m tei_to_mp4 ..\ReadAlong-Samples\alq\pig\wmg-syll.xml ..\ReadAlong-Samples\alq\pig\wmg-syll.smil ..\ReadAlong-Samples\alq\pig\wmg-syll.mp3 config.json images\bg-wood-1080.png output.mp4

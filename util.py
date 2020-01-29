@@ -1,10 +1,16 @@
 import os
+import json
 from lxml import etree as et
+from collections import OrderedDict
 
 def ensure_dirs(path):
     dirname = os.path.dirname(path)
     if dirname and not os.path.exists(dirname):
         os.makedirs(dirname)
+
+def load_json(input_path):
+    with open(input_path, "r", encoding="utf-8") as fin:
+        return json.load(fin, object_pairs_hook=OrderedDict)
 
 def save_xml(output_path, xml):
     ensure_dirs(output_path)

@@ -3,7 +3,7 @@ import base64
 import unicodedata 
 import logging
 
-from util import save_xml, parse_time, xpath_default
+from util import save_xml, parse_time, xpath_default, load_json
 
 from reportlab.pdfbase.pdfmetrics import registerFont, stringWidth, getAscent
 from reportlab.pdfbase.ttfonts import TTFont
@@ -28,24 +28,6 @@ registerFont(TTFont('NotoSans','./fonts/Noto_Sans_400.ttf'))
 # with the necessary animation commands to animate the user's visuals appropriately in time to the audio.
 #
 ##################################################################################################
-
-config = {
-    "width": 1920,
-    "height": 1080,
-    "margin-left": 200,
-    "margin-right": 200,
-    "margin-top": 100,
-    "margin-bottom": 200,
-    "background": "rgb(60, 60, 30)",
-    "text-color": "rgb(255,255,255)",
-    "highlight-color": "rgb(175,150,125)",
-    "font": "NotoSans",
-    "font-size": 72,
-    "line-height": 2.0,
-    "bg-image": "images/bg-wood-1080.png",
-    "bg-color": "rgb(30,20,10)",
-    "bg-color-opacity": 0.9
-} 
 
 '''
 failed attempt to use the Adobe Font Metrics inside matplotlib:
@@ -74,13 +56,14 @@ print("Wì", string_width("Wì"))
 
 class RASVComponent:
 
-    def __init__(self):
+    def __init__(self, config):
         self.id = ""
         self.children = []
         self.begin_time = 10000000000000000.0
         self.end_time = -1.0
         self.x = 0.0
         self.y = 0.0
+        self.config = config
 
     def setPos(self, x, y):
         deltaX = x - self.x
@@ -115,18 +98,18 @@ class RASVComponent:
 
 class Token(RASVComponent):
 
-    def __init__(self, text, id="", isContent=True):
-        RASVComponent.__init__(self)
+    def __init__(self, config, text, id="", isContent=True):
+        RASVComponent.__init__(self, config)
         text = unicodedata.normalize("NFC", text)
         self.text = text
         self.id = id
         self.isContent = isContent
 
     def getFont(self):
-        return config["font"]
+        return self.config["font"]
 
     def getFontSize(self):
-        return int(config["font-size"])
+        return int(self.config["font-size"])
 
     def getWidth(self):
         width = stringWidth(self.text, self.getFont(), self.getFontSize())
@@ -152,9 +135,9 @@ class Token(RASVComponent):
         result.attrib["font-size"] = "{:.3f}".format(self.getFontSize())
         result.attrib["font-family"] = self.getFont()
         result.attrib["font-weight"] = "bold"
-        if "text-color" in config:
-            result.attrib["fill"] = config["text-color"]
-            result.attrib["stroke"] = config["text-color"]
+        if "text-color" in self.config:
+            result.attrib["fill"] = self.config["text-color"]
+            result.attrib["stroke"] = self.config["text-color"]
         result.text = self.text
 
 
@@ -164,7 +147,7 @@ class Token(RASVComponent):
         original_y = self.y + self.getHeight()
         apparent_y = original_y - 10
 
-        pre_x = self.x + config["width"]  # keep it far off screen
+        pre_x = self.x + self.config["width"]  # keep it far off screen
 
         animation = et.Element("set")
         animation.attrib["attributeName"] = "x"
@@ -186,8 +169,8 @@ class Token(RASVComponent):
         animation = et.Element("animate")
         animation.attrib["attributeName"] = "fill"
         animation.attrib["attributeType"] = "CSS"
-        animation.attrib["from"] = config["text-color"]
-        animation.attrib["to"] = config["highlight-color"]
+        animation.attrib["from"] = self.config["text-color"]
+        animation.attrib["to"] = self.config["highlight-color"]
         animation.attrib["begin"] = "{:.3f}s".format(pre_animation_begin)
         animation.attrib["dur"] = "{:.3f}s".format(pre_animation_dur)
         result.append(animation)
@@ -195,8 +178,8 @@ class Token(RASVComponent):
         animation = et.Element("animate")
         animation.attrib["attributeName"] = "stroke"
         animation.attrib["attributeType"] = "CSS"
-        animation.attrib["from"] = config["text-color"]
-        animation.attrib["to"] = config["highlight-color"]
+        animation.attrib["from"] = self.config["text-color"]
+        animation.attrib["to"] = self.config["highlight-color"]
         animation.attrib["begin"] = "{:.3f}s".format(pre_animation_begin)
         animation.attrib["dur"] = "{:.3f}s".format(pre_animation_dur)
         result.append(animation)
@@ -215,7 +198,7 @@ class Token(RASVComponent):
         animation = et.Element("set")
         animation.attrib["attributeName"] = "fill"
         animation.attrib["attributeType"] = "CSS"
-        animation.attrib["to"] = config["highlight-color"]
+        animation.attrib["to"] = self.config["highlight-color"]
         animation.attrib["begin"] = "{:.3f}s".format(self.begin_time)
         animation.attrib["dur"] = "{:.3f}s".format(self.end_time - self.begin_time)
         result.append(animation)
@@ -223,7 +206,7 @@ class Token(RASVComponent):
         animation = et.Element("set")
         animation.attrib["attributeName"] = "stroke"
         animation.attrib["attributeType"] = "CSS"
-        animation.attrib["to"] = config["highlight-color"]
+        animation.attrib["to"] = self.config["highlight-color"]
         animation.attrib["begin"] = "{:.3f}s".format(self.begin_time)
         animation.attrib["dur"] = "{:.3f}s".format(self.end_time - self.begin_time)
         result.append(animation)
@@ -245,8 +228,8 @@ class Token(RASVComponent):
         animation = et.Element("animate")
         animation.attrib["attributeName"] = "fill"
         animation.attrib["attributeType"] = "CSS"
-        animation.attrib["from"] = config["highlight-color"]
-        animation.attrib["to"] = config["text-color"]
+        animation.attrib["from"] = self.config["highlight-color"]
+        animation.attrib["to"] = self.config["text-color"]
         animation.attrib["begin"] = "{:.3f}s".format(self.end_time)
         animation.attrib["dur"] = "{:.3f}s".format(post_animation_dur)
         result.append(animation)
@@ -254,8 +237,8 @@ class Token(RASVComponent):
         animation = et.Element("animate")
         animation.attrib["attributeName"] = "stroke"
         animation.attrib["attributeType"] = "CSS"
-        animation.attrib["from"] = config["highlight-color"]
-        animation.attrib["to"] = config["text-color"]
+        animation.attrib["from"] = self.config["highlight-color"]
+        animation.attrib["to"] = self.config["text-color"]
         animation.attrib["begin"] = "{:.3f}s".format(self.end_time)
         animation.attrib["dur"] = "{:.3f}s".format(post_animation_dur)
         result.append(animation)
@@ -263,8 +246,8 @@ class Token(RASVComponent):
 
 class Line(RASVComponent):
 
-    def __init__(self):
-        RASVComponent.__init__(self)
+    def __init__(self, config):
+        RASVComponent.__init__(self, config)
         self.children = []
 
     def addToken(self, token):
@@ -294,26 +277,26 @@ class Line(RASVComponent):
 
 class Sentence(RASVComponent):
 
-    def __init__(self, elem):
-        RASVComponent.__init__(self)
+    def __init__(self, elem, config):
+        RASVComponent.__init__(self, config)
         self.width = 0
         self.id = elem.attrib["id"]
         self.tokens = []
         self.children = []
 
         if elem.text:
-            self.tokens.append(Token(elem.text, "", False))
+            self.tokens.append(Token(config, elem.text, "", False))
         for child in elem:
             child_id = child.attrib["id"]
-            self.tokens.append(Token(child.text, child_id, True))
+            self.tokens.append(Token(config, child.text, child_id, True))
             if child.tail:
-                self.tokens.append(Token(child.tail, "", False))
+                self.tokens.append(Token(config, child.tail, "", False))
 
     def layout(self, width):
         self.width = width
         self.children = []
         current_y = self.y 
-        currentLine = Line()
+        currentLine = Line(self.config)
         currentLine.setPos(self.x, current_y)
 
         for token in self.tokens:
@@ -324,7 +307,7 @@ class Sentence(RASVComponent):
                 currentLine.layout(width)
                 self.children.append(currentLine)
                 current_y += currentLine.getHeight()
-                currentLine = Line()
+                currentLine = Line(self.config)
                 currentLine.setPos(self.x, current_y)
             
             currentLine.addToken(token)
@@ -339,14 +322,14 @@ class Sentence(RASVComponent):
             return 0
         lineHeight = self.children[0].getHeight()
         result = lineHeight * len(self.children) 
-        result += (float(config["line-height"]) - 1) * \
+        result += (float(self.config["line-height"]) - 1) * \
                                 (len(self.children) - 1)
         return result
 
     def getSpacingHeight(self):
         if not self.children:
             return 0
-        return float(config["line-height"] - 1) * self.children[0].getHeight()
+        return float(self.config["line-height"] - 1) * self.children[0].getHeight()
 
 
 
@@ -354,23 +337,23 @@ class Sentence(RASVComponent):
 
 class Slide(RASVComponent):
 
-    def __init__(self, elem):
-        RASVComponent.__init__(self)
+    def __init__(self, elem, config):
+        RASVComponent.__init__(self, config)
         self.id = elem.attrib["id"]
-        self.children = [ Sentence(p) for p in elem.xpath(".//s") ]
+        self.children = [ Sentence(s, config) for s in elem.xpath(".//s") ]
 
     def layout(self):
-        x = float(config["margin-left"])
-        current_y = 0  #float(config["margin-top"])
-        width = float(config["width"]) - float(config["margin-left"]) - float(config["margin-right"]) 
-        #height = float(config["height"]) - float(config["margin-top"]) - float(config["margin-bottom"]) 
+        x = float(self.config["margin-left"])
+        current_y = 0  #float(self.config["margin-top"])
+        width = float(self.config["width"]) - float(self.config["margin-left"]) - float(self.config["margin-right"]) 
+        #height = float(self.config["height"]) - float(self.config["margin-top"]) - float(self.config["margin-bottom"]) 
         for sent in self.children:
             sent.setPos(x, current_y)
             sent.layout(width)
             current_y += sent.getHeight() + sent.getSpacingHeight()
         
         height = self.getHeight()
-        max_height = float(config["height"])
+        max_height = float(self.config["height"])
         if height < max_height: 
             adjustment_y = (max_height - height) / 2
             for sent in self.children:
@@ -394,9 +377,9 @@ class Slide(RASVComponent):
 
 class Slideshow(RASVComponent):
 
-    def __init__(self, elem):
-        RASVComponent.__init__(self)
-        self.children = [ Slide(p) for p in elem.xpath('.//div[@type="page"]') ]
+    def __init__(self, elem, config):
+        RASVComponent.__init__(self, config)
+        self.children = [ Slide(p, config) for p in elem.xpath('.//div[@type="page"]') ]
         self.background = ""
 
     def set_background(self, image_path):
@@ -419,8 +402,8 @@ class Slideshow(RASVComponent):
 
     def asSVG(self):
         result = et.Element("svg")
-        result.attrib["width"] = str(config["width"])
-        result.attrib["height"] = str(config["height"])
+        result.attrib["width"] = str(self.config["width"])
+        result.attrib["height"] = str(self.config["height"])
         result.attrib["baseProfile"] = "full"
         result.attrib["version"] = "1.1"
         result.attrib["xmlns"] = "http://www.w3.org/2000/svg"
@@ -430,29 +413,29 @@ class Slideshow(RASVComponent):
         #image = et.Element("image")
         #image.attrib["x"] = "0"
         #image.attrib["y"] = "0"
-        #image.attrib["width"] = str(config["width"])
-        #image.attrib["height"] = str(config["height"])
-        #image.attrib["href"] = config["bg-image"]
+        #image.attrib["width"] = str(self.config["width"])
+        #image.attrib["height"] = str(self.config["height"])
+        #image.attrib["href"] = self.config["bg-image"]
         #result.append(image)
 
         if self.background:
             image = et.Element("image")
             image.attrib["x"] = "0"
             image.attrib["y"] = "0"
-            image.attrib["width"] = str(config["width"])
-            image.attrib["height"] = str(config["height"])
+            image.attrib["width"] = str(self.config["width"])
+            image.attrib["height"] = str(self.config["height"])
             image.attrib["{http://www.w3.org/1999/xlink}href"] = self.background
             result.append(image)
 
-            if "bg-color" in config:
+            if "bg-color" in self.config:
                 rect = et.Element("rect")
                 rect.attrib["x"] = "0"
                 rect.attrib["y"] = "0"
-                rect.attrib["width"] = str(config["width"])
-                rect.attrib["height"] = str(config["height"])
-                rect.attrib["fill"] = config["bg-color"]
+                rect.attrib["width"] = str(self.config["width"])
+                rect.attrib["height"] = str(self.config["height"])
+                rect.attrib["fill"] = self.config["bg-color"]
                 if "bg-color-opacity" in config:
-                    rect.attrib["fill-opacity"] = str(config["bg-color-opacity"])
+                    rect.attrib["fill-opacity"] = str(self.config["bg-color-opacity"])
                 result.append(rect)
 
         for slide in self.children:
@@ -490,9 +473,10 @@ def add_timestamps(smil_path, slideshow):
                 logging.warning(f"SMIL file references an element {target_id} that does not exist in the TEI file")
 
 
-def tei_to_svg(input_tei_path, input_smil_path):
+def tei_to_svg(input_tei_path, input_smil_path, config_path):
     tree = et.parse(input_tei_path)
-    slideshow = Slideshow(tree.getroot())
+    config = load_json(config_path)
+    slideshow = Slideshow(tree.getroot(), config)
     slideshow.layout()
     add_timestamps(input_smil_path, slideshow)
     return slideshow.asSVG()
