@@ -131,5 +131,5 @@ dmypy.json
 
 # ReadAlong-Video-specific exclusions
 temp/
-.mp4
+*.mp4
 images/originals/
