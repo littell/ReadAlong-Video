@@ -20,29 +20,22 @@ registerFont(TTFont('NotoSans','./fonts/Noto_Sans_400.ttf'))
 # of the project; this is still very brittle and involves things like specifying colors, sizes,
 # margins, etc. by editing JSON configuration files.  Even if you *can* do that, it's not ideal:
 # video rendering can take a long time, and it's annoying to completely re-render the project to 
-# see the results of changing the background opacity by 20%.
+# see the results of changing the highlight color a little bit.
 # 
 # Rather, I see the future of the video component as being more tied to a WYSIWYG interface, in which 
-# the user is entering/coloring/laying out the text from the beginning, the client sends that information 
+# the user is entering/coloring/laying-out the text from the beginning, the client sends that information 
 # (including all visual information) to the alignment backend, and the alignment backend just responds 
 # with the necessary animation commands to animate the user's visuals appropriately in time to the audio.
 #
 ##################################################################################################
 
-'''
-failed attempt to use the Adobe Font Metrics inside matplotlib:
 
-from matplotlib import rcParams
-import os.path
-afm_filename = os.path.join(rcParams['datapath'], 'fonts', 'afm', 'ptmr8a.afm')
-from matplotlib.afm import AFM
-afm = AFM(open(afm_filename, 'rb'))
 
-def string_width(text):
-    return afm.string_width_height(text)
 
-print("Wì", string_width("Wì"))
-'''
+# alternative way to get font metric information, albeit very
+# indirectly.  keeping it here as a backup, because I've seen rumors that
+# the svglib/reportlab metrics get things wrong for non-Latin/Cyrillic
+# writing systems.
 
 #from PIL import Image, ImageFont, ImageDraw
 #FONT = ImageFont.truetype("arial.ttf", 64)
@@ -53,17 +46,19 @@ print("Wì", string_width("Wì"))
 #draw.text((0, 0), 'A', (255, 255, 255), font=font)
 #im.show('charimg')
 
+HUGE_NUMBER = 10000000000000000.0
 
 class RASVComponent:
 
-    def __init__(self, config):
+    def __init__(self, config, parent):
+        self.parent = parent
+        self.config = config
         self.id = ""
         self.children = []
-        self.begin_time = 10000000000000000.0
+        self.begin_time = HUGE_NUMBER
         self.end_time = -1.0
         self.x = 0.0
         self.y = 0.0
-        self.config = config
 
     def setPos(self, x, y):
         deltaX = x - self.x
@@ -72,6 +67,23 @@ class RASVComponent:
         self.y = y
         for child in self.children:
             child.setPos(child.x + deltaX, child.y + deltaY)
+
+    def getPreviousSibling(self):
+        previousChild = None
+        result = None
+        for child in self.parent.children:
+            if child == self:
+                return previousChild
+            previousChild = child             
+
+    def getNextSibling(self):
+        found = False
+        for child in self.parent.children:
+            if child == self:
+                found = True
+            elif found:
+                return child
+        return None
 
     def addTimestamp(self, target_id, begin, end):
         
@@ -83,13 +95,33 @@ class RASVComponent:
         for child in self.children:
             if child.addTimestamp(target_id, begin, end):
                 self.begin_time = min(begin, self.begin_time)
-                self.end_time = max(begin, self.end_time)
+                self.end_time = max(end, self.end_time)
                 return True
+
+    def addMissingTimestamps(self):
+
+        if self.begin_time == HUGE_NUMBER: # don't have a begin time yet    
+            previous_sibling = self.getPreviousSibling()
+            if previous_sibling:
+                self.begin_time = previous_sibling.end_time
+            else:
+                self.begin_time = parent.begin_time 
+
+            self.end_time = self.begin_time + 0.01  # just a tiny amount, so that it has some duration
+
+            next_sibling = self.getNextSibling()
+            if next_sibling and next_sibling.begin_time != HUGE_NUMBER: 
+                # if the next sibling has a defined time, extend yourself to fill the gap
+                self.end_time = next_sibling.begin_time
+
+        for child in self.children:
+            child.addMissingTimestamps()
+
 
     def asSVG(self):
         result = et.Element("g")
-        #result.attrib["data-begin-time"] = "{:.3f}".format(self.begin_time)
-        #result.attrib["data-end-time"] = "{:.3f}".format(self.end_time)
+        result.attrib["data-begin-time"] = "{:.3f}".format(self.begin_time)
+        result.attrib["data-end-time"] = "{:.3f}".format(self.end_time)
         if self.id:
             result.attrib["id"] = self.id
         for token in self.children:
@@ -98,8 +130,8 @@ class RASVComponent:
 
 class Token(RASVComponent):
 
-    def __init__(self, config, text, id="", isContent=True):
-        RASVComponent.__init__(self, config)
+    def __init__(self, config, parent, text, id="", isContent=True):
+        RASVComponent.__init__(self, config, parent)
         text = unicodedata.normalize("NFC", text)
         self.text = text
         self.id = id
@@ -112,13 +144,10 @@ class Token(RASVComponent):
         return int(self.config["font-size"])
 
     def getWidth(self):
-        width = stringWidth(self.text, self.getFont(), self.getFontSize())
-        return width
+        return stringWidth(self.text, self.getFont(), self.getFontSize())
 
     def getHeight(self):
-        #return FONT.getsize(self.text)[1]
-        height = getAscent(self.getFont(),self.getFontSize())
-        return height
+        return getAscent(self.getFont(),self.getFontSize())
 
     def asSVG(self):
         result = et.Element("text")
@@ -128,7 +157,7 @@ class Token(RASVComponent):
         #result.attrib["data-end-time"] = "{:.3f}".format(self.end_time)
         
         original_y = self.y + self.getHeight()
-        apparent_y = original_y - 10
+        #apparent_y = original_y - 10
         
         result.attrib["x"] = "{:.3f}".format(self.x)
         result.attrib["y"] = "{:.3f}".format(original_y)
@@ -141,14 +170,22 @@ class Token(RASVComponent):
         result.text = self.text
 
 
+        # lots of playing around here with different effects, don't try too hard
+        # to make sense of everything.  eventually this should be factored out into
+        # "animators" that encapsulate a reasonable animation that can be applied
+        # to elements in the scene.
+
         # pre-animation
-        pre_animation_begin = self.begin_time - 1.20
+        pre_animation_begin = self.begin_time - 0.2
         pre_animation_dur = self.begin_time - pre_animation_begin
         original_y = self.y + self.getHeight()
         apparent_y = original_y - 10
 
-        pre_x = self.x + self.config["width"]  # keep it far off screen
+        #pre_x = self.x + self.config["width"]  # keep it far off screen
 
+        # pre-animation
+
+        '''
         animation = et.Element("set")
         animation.attrib["attributeName"] = "x"
         animation.attrib["attributeType"] = "XML"
@@ -165,7 +202,8 @@ class Token(RASVComponent):
         animation.attrib["begin"] = "{:.3f}s".format(pre_animation_begin)
         animation.attrib["dur"] = "{:.3f}s".format(pre_animation_dur)
         result.append(animation)
-        
+        '''
+
         animation = et.Element("animate")
         animation.attrib["attributeName"] = "fill"
         animation.attrib["attributeType"] = "CSS"
@@ -173,6 +211,8 @@ class Token(RASVComponent):
         animation.attrib["to"] = self.config["highlight-color"]
         animation.attrib["begin"] = "{:.3f}s".format(pre_animation_begin)
         animation.attrib["dur"] = "{:.3f}s".format(pre_animation_dur)
+        animation.attrib["fill"] = "freeze"  # if we were to fade out later, we don't
+                                            # want to freeze here.
         result.append(animation)
 
         animation = et.Element("animate")
@@ -182,6 +222,8 @@ class Token(RASVComponent):
         animation.attrib["to"] = self.config["highlight-color"]
         animation.attrib["begin"] = "{:.3f}s".format(pre_animation_begin)
         animation.attrib["dur"] = "{:.3f}s".format(pre_animation_dur)
+        animation.attrib["fill"] = "freeze"  # if we were to fade out later, we don't
+                                            # want to freeze here.
         result.append(animation)
 
         # animation
@@ -195,12 +237,15 @@ class Token(RASVComponent):
         result.append(animation)
         '''
 
+        '''
         animation = et.Element("set")
         animation.attrib["attributeName"] = "fill"
         animation.attrib["attributeType"] = "CSS"
         animation.attrib["to"] = self.config["highlight-color"]
         animation.attrib["begin"] = "{:.3f}s".format(self.begin_time)
         animation.attrib["dur"] = "{:.3f}s".format(self.end_time - self.begin_time)
+        animation.attrib["fill"] = "freeze"  # if we were to fade out later, we don't
+                                            # want to freeze here.
         result.append(animation)
 
         animation = et.Element("set")
@@ -209,10 +254,11 @@ class Token(RASVComponent):
         animation.attrib["to"] = self.config["highlight-color"]
         animation.attrib["begin"] = "{:.3f}s".format(self.begin_time)
         animation.attrib["dur"] = "{:.3f}s".format(self.end_time - self.begin_time)
+        animation.attrib["fill"] = "freeze"
         result.append(animation)
-
+        '''
         # post-animation
-        post_animation_dur = 0.2
+        #post_animation_dur = 0.2
 
         '''
         animation = et.Element("animate")
@@ -225,6 +271,7 @@ class Token(RASVComponent):
         result.append(animation)
         '''
 
+        '''
         animation = et.Element("animate")
         animation.attrib["attributeName"] = "fill"
         animation.attrib["attributeType"] = "CSS"
@@ -242,19 +289,19 @@ class Token(RASVComponent):
         animation.attrib["begin"] = "{:.3f}s".format(self.end_time)
         animation.attrib["dur"] = "{:.3f}s".format(post_animation_dur)
         result.append(animation)
+        '''
+
         return result
 
 class Line(RASVComponent):
 
-    def __init__(self, config):
-        RASVComponent.__init__(self, config)
+    def __init__(self, config, parent):
+        RASVComponent.__init__(self, config, parent)
         self.children = []
 
     def addToken(self, token):
         self.children.append(token)
-
-    def getFontSize(self):
-        return 64
+        token.parent = self
 
     def getWidth(self):
         return sum(t.getWidth() for t in self.children)
@@ -263,7 +310,9 @@ class Line(RASVComponent):
         return len(self.children)
 
     def getHeight(self):
-        return self.getFontSize()
+        if not self.children:
+            return 0.0
+        return self.children[0].getHeight()
 
     def layout(self, width):
         margin_x = (width - self.getWidth()) / 2
@@ -277,26 +326,26 @@ class Line(RASVComponent):
 
 class Sentence(RASVComponent):
 
-    def __init__(self, elem, config):
-        RASVComponent.__init__(self, config)
+    def __init__(self, elem, config, parent):
+        RASVComponent.__init__(self, config, parent)
         self.width = 0
         self.id = elem.attrib["id"]
         self.tokens = []
         self.children = []
 
         if elem.text:
-            self.tokens.append(Token(config, elem.text, "", False))
+            self.tokens.append(Token(config, self, elem.text, "", False))
         for child in elem:
             child_id = child.attrib["id"]
-            self.tokens.append(Token(config, child.text, child_id, True))
+            self.tokens.append(Token(config, self, child.text, child_id, True))
             if child.tail:
-                self.tokens.append(Token(config, child.tail, "", False))
+                self.tokens.append(Token(config, self, child.tail, "", False))
 
     def layout(self, width):
         self.width = width
         self.children = []
         current_y = self.y 
-        currentLine = Line(self.config)
+        currentLine = Line(self.config, self)
         currentLine.setPos(self.x, current_y)
 
         for token in self.tokens:
@@ -307,7 +356,7 @@ class Sentence(RASVComponent):
                 currentLine.layout(width)
                 self.children.append(currentLine)
                 current_y += currentLine.getHeight()
-                currentLine = Line(self.config)
+                currentLine = Line(self.config, self)
                 currentLine.setPos(self.x, current_y)
             
             currentLine.addToken(token)
@@ -337,10 +386,10 @@ class Sentence(RASVComponent):
 
 class Slide(RASVComponent):
 
-    def __init__(self, elem, config):
-        RASVComponent.__init__(self, config)
+    def __init__(self, elem, config, parent):
+        RASVComponent.__init__(self, config, parent)
         self.id = elem.attrib["id"]
-        self.children = [ Sentence(s, config) for s in elem.xpath(".//s") ]
+        self.children = [ Sentence(s, config, self) for s in elem.xpath(".//s") ]
 
     def layout(self):
         x = float(self.config["margin-left"])
@@ -368,18 +417,51 @@ class Slide(RASVComponent):
 
     def asSVG(self):
         result = et.Element("g")
-        result.attrib["fill-opacity"] = "0.1"
         if self.id:
             result.attrib["id"] = self.id
+
+        result.attrib["visibility"] = "hidden"
+
         for token in self.children:
             result.append(token.asSVG())
+
+        faraway_str = "{:.3f} {:.3f}".format(self.config["width"], self.config["height"])
+
+        # get the slide outta the way until it's needed.  workaround
+        # for visibility features apparently not being implemented
+        # in svglib.  even though this is static throughout the 
+        # animation period, this has to be an <animateTransform> and not
+        # a <set> because it needs to affect the "transform" attribute.
+
+        animation = et.Element("animateTransform")
+        animation.attrib["attributeName"] = "transform"
+        animation.attrib["type"] = "translate"
+        animation.attrib["to"] = faraway_str
+        animation.attrib["from"] = faraway_str
+        animation.attrib["begin"] = "0.0"
+        animation.attrib["dur"] = "{:.3f}s".format(self.begin_time)
+        result.append(animation)
+
+        animation = et.Element("animateTransform")
+        animation.attrib["attributeName"] = "transform"
+        animation.attrib["type"] = "translate"
+        animation.attrib["to"] = faraway_str
+        animation.attrib["from"] = faraway_str
+        animation.attrib["begin"] = "{:.3f}s".format(self.end_time)
+        animation.attrib["dur"] = "{:.3f}s".format(5.0)  
+                            # doesn't matter exactly how long because we freeze,
+                            # just so long as it's > 0.0
+        animation.attrib["fill"] = "freeze"
+        
+        result.append(animation)
+
         return result
 
 class Slideshow(RASVComponent):
 
     def __init__(self, elem, config):
-        RASVComponent.__init__(self, config)
-        self.children = [ Slide(p, config) for p in elem.xpath('.//div[@type="page"]') ]
+        RASVComponent.__init__(self, config, None)
+        self.children = [ Slide(p, config, self) for p in elem.xpath('.//div[@type="page"]') ]
         self.background = ""
 
     def set_background(self, image_path):
@@ -440,7 +522,6 @@ class Slideshow(RASVComponent):
 
         for slide in self.children:
             result.append(slide.asSVG())
-            break
         return result
 
 
@@ -472,6 +553,7 @@ def add_timestamps(smil_path, slideshow):
             if not found:
                 logging.warning(f"SMIL file references an element {target_id} that does not exist in the TEI file")
 
+    slideshow.addMissingTimestamps()
 
 def tei_to_svg(input_tei_path, input_smil_path, config_path):
     tree = et.parse(input_tei_path)

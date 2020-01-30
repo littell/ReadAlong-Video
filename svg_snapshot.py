@@ -41,20 +41,29 @@
 # * animateColor is not supported, being deprecated in the SVG standard
 #   since v1.1.
 #
-# Issues due to missing pieces in the svglib SVG rendering library:
+# Non-supported features due to missing features in the svglib SVG rendering library:
 #
 # * The "opacity" attribute is unsupported (but fill-opacity and stroke-
-#   opacity are).
+#   opacity are). 
 #
 # * No support for gradients
 #
 # * Limited support for masking
+#
+# Non-supported features due to either undocumented missing features in svglib
+# or I just can't figure out how to use them properly:
 #
 # * It doesn't appear that image elements from an external URL (e.g. 
 #   a PNG file) actually work in svglib.  If you need raster images, use
 #   a base64 string, e.g. xlink:href="data:image/png;base64,iVBORw0..."
 #   Currently I can only get PNGs working this way; I don't know if 
 #   that's a problem on my side or theirs.
+#
+# * Visibility attributes do not appear to be supported. Currently, to
+#   make an element invisible, we just move it waaaaaay off to the right.
+#
+# * PNG and GIF transparency do not appear to work.  TIFF 
+#   transparency does, however.
 #
 #################
 

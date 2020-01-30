@@ -13,7 +13,7 @@ from reportlab.pdfbase.pdfmetrics import registerFont, stringWidth
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.colors import toColor
 
-from util import save_xml
+from util import save_xml, load_json
 from svg_snapshot import SnapshotSVG
 
 FRAMES_PER_SECOND = 24
@@ -33,28 +33,36 @@ def write_movie_chunk(clips, background_filename, fps):
     tempfile_path = "temp/temp" + str(NUM_MOVIE_CHUNKS) + ".mp4"
     NUM_MOVIE_CHUNKS += 1
     result_clip = mp.concatenate_videoclips(clips, method="compose")
-    bgClip = mp.ImageClip(background_filename).set_duration(result_clip.duration)
-    result_clip = mp.CompositeVideoClip([bgClip, result_clip])
+    if background_filename:
+        bgClip = mp.ImageClip(background_filename).set_duration(result_clip.duration)
+        result_clip = mp.CompositeVideoClip([bgClip, result_clip])
     result_clip.write_videofile(tempfile_path, fps=fps)
     return tempfile_path
 
 def svg_to_mp4(svg_tree, 
                 audio_filename,
-                background_filename, 
+                config_filename, 
                 output_filename,
                 fps=FRAMES_PER_SECOND):
 
     clips = []
 
-    audio_clip = mp.AudioFileClip(audio_filename)
-    video_length = audio_clip.duration
+    if audio_filename:
+        audio_clip = mp.AudioFileClip(audio_filename)
+        video_length = audio_clip.duration
+    else:
+        video_length = 4.0
+
     frame_duration = 1.0 / fps
     current_length = 0
 
     snapshot_svg = SnapshotSVG(svg_tree)
 
-    clip_batch = None
-    clip_batches = []
+    if config_filename:
+        config = load_json(config_filename)
+        background_filename = config.get("bg-image", "")
+    else:
+        background_filename = ""
 
     movie_chunk_paths = []
 
@@ -85,9 +93,6 @@ def svg_to_mp4(svg_tree,
         
         clips.append(imageClip)
         current_length += frame_duration
-
-        if current_length >= 19.0:
-            break 
         
         if current_length >= video_length:
             break
@@ -105,21 +110,22 @@ def svg_to_mp4(svg_tree,
     result_clip = mp.concatenate_videoclips(movie_chunks, method="compose").set_duration(video_length)
     #bgClip = mp.ImageClip(background_filename).set_duration(video_length)
     #result_clip = mp.CompositeVideoClip([bgClip, result_clip])
-    result_clip.audio = audio_clip
+    if audio_filename:
+        result_clip.audio = audio_clip
     result_clip.write_videofile(output_filename, fps=fps)
 
-def main(input_filename, audio_filename, background_filename, output_filename):
+def main(input_filename, audio_filename, config_filename, output_filename):
 
     svg_tree = et.parse(input_filename)
-    svg_to_mp4(svg_tree, audio_filename, background_filename, output_filename, 2.0, 24)
+    svg_to_mp4(svg_tree, audio_filename, config_filename, output_filename, 24)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Render an SVG animation to MP4 movie')
     parser.add_argument('input', type=str, help='Input .svg file')
-    parser.add_argument('audio', type=str, help='Input .mp3 file')
-    parser.add_argument('bg', type=str, help='Input raster image for background')
     parser.add_argument('output', type=str, help='Output .mp4 file')
+    parser.add_argument('audio', type=str, nargs="?", default="", help='Input .mp3 file')
+    parser.add_argument('config', type=str, nargs="?", default="", help="Config JSON file")
     args = parser.parse_args()
-    main(args.input, args.audio, args.bg, args.output)
+    main(args.input, args.audio, args.config, args.output)

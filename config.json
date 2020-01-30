@@ -3,13 +3,11 @@
     "height": 1080,
     "margin-left": 200,
     "margin-right": 200,
-    "margin-top": 100,
-    "margin-bottom": 200,
-    "background": "rgb(60, 60, 30)",
     "text-color": "rgb(255,255,255)",
-    "highlight-color": "rgb(175,150,125)",
+    "highlight-color": "rgb(225,150,150)",
     "font": "NotoSans",
     "font-size": 72,
     "line-height": 2.0,
-    "bg-image": "images/bg-wood-1080.png"
+    "bg-image": "images/bg-wood-1080.png",
+    "fps": 60
 } 

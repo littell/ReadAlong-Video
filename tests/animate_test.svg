@@ -2,13 +2,16 @@
 <svg baseProfile="full" height="480" version="1.1" width="720" xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink">
     <defs />
     <rect id="RectElement" x="100" y="100" width="200" height="100"
-                        fill="rgb(0,0,0)">    
+                        fill="rgb(90,0,0)">    
         <animate attributeName="x" attributeType="XML"
              begin="0s" dur="4s" fill="freeze" from="300" to="0" />
         <animate attributeName="y" attributeType="XML"
              begin="0s" dur="4s" fill="freeze" from="0" to="300" />
         <set attributeName="fill" attributeType="CSS"
            to="rgb(255,0,255)"
+           begin="1.2s" dur="0.3s" />
+        <set attributeName="visibility" attributeType="CSS"
+           to="hidden"
            begin="1.5s" dur="0.3s" />
     </rect>
 </svg>
