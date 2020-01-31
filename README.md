@@ -11,7 +11,7 @@ Usage:
 tei_to_mp4 <tei_file> <smil_file> <audio_file> <config_file> <output_mp4>
 ```
 
-To render HD video, you'll need a lot of available ram (5-6 GB at least), disk space, and time (about 18x realtime on my work laptop).  We can probably winnow this down to something more reasonable, but in general video rendering is one of the most computationally expensive things PCs actually do, so it's never going to be completely trivial.
+To render HD video, you'll need a lot of available RAM (5-6 GB at least), disk space, and time (about 18x realtime on my work laptop).  We can probably winnow this down to something more reasonable, but in general video rendering is one of the most computationally expensive things PCs actually do, so it's never going to be completely trivial.
 
 Notes:
 
@@ -21,7 +21,7 @@ Notes:
 
 * There does not appear to be any *direct* way to render an SVG animation to video in Python.  (SVG usage in Python tends to be static, like to render data plots.)  
 
-    * However, the basics of the SVG animation standard are not very difficult.  Animations are conceptualized as paths (many of them linear) through a conceptual space (e.g. the coordinate space, or color space), that begin at a certain time and have a certain duration.  The appearance of the animation at any time can be determined by interpolating along that path to get the momentary value each property.  There are many further aspects to the SVG standard, but just implementing this much gives you a substantial sandbox for implementing animations.
+    * However, the basics of the SVG animation standard are not very difficult.  Animations are conceptualized as paths (many of them linear) through a conceptual space (e.g. the coordinate space, or color space), that begin at a certain time and have a certain duration.  The appearance of the animation at any time can be determined by interpolating along that path to get the momentary value of each property.  There are many further aspects to the SVG standard, but just implementing this much gives you a substantial sandbox for implementing animations.
 
     * svg_snapshot.py is the workhorse file that makes this rendering possible.  You give it an SVG animation document and it returns an object, queriable by time, that returns a *static* SVG document representing the state of the animation at that time.
 

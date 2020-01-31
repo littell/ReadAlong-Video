@@ -61,6 +61,9 @@
 #
 # * Visibility attributes do not appear to be supported. Currently, to
 #   make an element invisible, we just move it waaaaaay off to the right.
+#   Note that this is not a generally-correct solution to SVG visibility,
+#   like invisible text is still supposed to be where it is for the general
+#   text layout purposes.  But if works for our purposes.
 #
 # * PNG and GIF transparency do not appear to work.  TIFF 
 #   transparency does, however.
@@ -69,8 +72,6 @@
 
 import math
 import re
-#import svgwrite
-import numpy as np
 from copy import deepcopy
 from lxml import etree as et 
 from svg.path import parse_path
