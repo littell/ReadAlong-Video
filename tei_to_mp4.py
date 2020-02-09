@@ -4,6 +4,7 @@ import logging
 from tei_to_svg import tei_to_svg
 from svg_to_mp4 import svg_to_mp4
 from util import save_xml, load_json
+import moviepy.editor as mp
 
 def tei_to_mp4(input_tei_path, 
         input_smil_path, 
@@ -27,9 +28,12 @@ def tei_to_mp4(input_tei_path,
             logging.error(f"Background image {bg_filename} does not exist")
             return 
 
+    # determine some basic parameters like duration and fps
+    audio_clip = mp.AudioFileClip(input_audio_path)
+    total_duration = audio_clip.duration
     fps = config.get("fps", 24)
 
-    svg = tei_to_svg(input_tei_path, input_smil_path, config_path)
+    svg = tei_to_svg(input_tei_path, input_smil_path, config_path, total_duration)
     save_xml("output.svg", svg)
     svg_to_mp4(svg, input_audio_path, config_path, output_path, fps)
     

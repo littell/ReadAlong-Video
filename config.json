@@ -3,11 +3,14 @@
     "height": 1080,
     "margin-left": 200,
     "margin-right": 200,
-    "text-color": "rgb(255,255,255)",
-    "highlight-color": "rgb(225,150,150)",
+    "text-color": "rgb(225,150,150)",
+    "highlight-color": "rgb(225,225,225)",
     "font": "NotoSans",
     "font-size": 72,
     "line-height": 2.0,
     "bg-image": "images/bg-wood-1080.png",
-    "fps": 60
+    "fps": 60,
+    "ball-clearance": -10,
+    "ball-target-ascent": 70,
+    "ball-radius": 12
 } 

@@ -72,6 +72,7 @@
 
 import math
 import re
+import logging
 from copy import deepcopy
 from lxml import etree as et 
 from svg.path import parse_path
@@ -102,7 +103,11 @@ def parse_path_str(path_str):
         can be expensive """
 
     if path_str not in PATH_CACHE:
-        PATH_CACHE[path_str] = parse_path(path_str, 1e-3)
+        try:
+            PATH_CACHE[path_str] = parse_path(path_str, 1e-3)
+        except:
+            logging.error(f"Cannot parse path: {path_str}")
+            return None
     return PATH_CACHE[path_str]
 
 
@@ -282,12 +287,33 @@ class MotionAnimator(Animator):
         
         point = path.point(time_position)
 
-        current_x = float(target.attrib.get("x", 0.0))
-        current_y = float(target.attrib.get("y", 0.0))
+        if target.tag == "circle":
+            x_label, y_label = "cx", "cy"
+        else:
+            x_label, y_label = "x", "y"
+
+        if "data-original-x" not in target.attrib:
+            target.attrib["data-original-x"] = target.attrib.get(x_label, 0.0)
+            target.attrib["data-original-y"] = target.attrib.get(y_label, 0.0)
+
+        current_x = float(target.attrib.get("data-original-x", 0.0))
+        current_y = float(target.attrib.get("data-original-y", 0.0))
         value_x = "{:.3f}".format(current_x + point.real)
         value_y = "{:.3f}".format(current_y + point.imag)
-        target.attrib["x"] = value_x
-        target.attrib["y"] = value_y
+
+        #target.attrib[x_label] = value_x
+        #target.attrib[y_label] = value_y
+
+        translate_str = f"translate({value_x} {value_y})"
+        
+        target.attrib["data-motion-translate"] = translate_str
+
+        #if "transform" in target.attrib:
+        #    target.attrib["transform"] += " " + translate_str
+        #else:
+        #    target.attrib["transform"] = translate_str
+
+        #print(target.attrib["transform"])
 
         if self.attrib_rotate in ["auto", "auto-reverse"]:
             if time_position > 0.999:  # don't want nonsense values if we're at the end,
@@ -302,10 +328,12 @@ class MotionAnimator(Animator):
                 angle += 180.0
             
             rotate_str = "rotate(" + "{:.3f}".format(angle) + "," + value_x + "," + value_y + ")"
-            if "transform" in target.attrib:
-                target.attrib["transform"] += " " + rotate_str
-            else:
-                target.attrib["transform"] = rotate_str
+            #if "transform" in target.attrib:
+            #    target.attrib["transform"] += " " + rotate_str
+            #else:
+            #    target.attrib["transform"] = rotate_str
+
+            target.attrib["data-motion-rotate"] = rotate_str
 
 class StaticValueAnimator(Animator):
     """ Interprets the <set> element """
@@ -360,8 +388,6 @@ def make_animator(elem, target):
 NUM_IDS = 0
 
 def get_animators(elem):
-    """ Gives a static SVG element corresponding to 
-        an animated SVG element time t """
     global NUM_IDS
 
     animators = []
@@ -380,14 +406,32 @@ def get_animators(elem):
 
     return animators
 
+
+def motion_compile(elem):
+
+    if "data-motion-translate" in elem.attrib:
+        elem.attrib["transform"] = elem.attrib["data-motion-translate"] + \
+                                " " +  elem.attrib.get("transform", "") 
+    
+    if "data-motion-rotate" in elem.attrib:
+        elem.attrib["transform"] = elem.attrib["data-motion-rotate"] + \
+                                " " +  elem.attrib.get("transform", "") 
+
+    for child in elem:
+        motion_compile(child)
+
 class SnapshotSVG:
 
     def __init__(self, svg):
         self.svg = svg if isinstance(svg, et._Element) else svg.getroot()
         self.animators = get_animators(self.svg)
+        self.animators = sorted(self.animators, key=lambda a:a.begin)
 
-    def __getitem__(self, t):
+    def __getitem__(self, t):    
+        """ Gives a static SVG element corresponding to 
+        an animated SVG element time t """
         result = deepcopy(self.svg)
         for animator in self.animators:
             animator.apply(result, t)
+        motion_compile(result)
         return result

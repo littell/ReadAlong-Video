@@ -114,6 +114,7 @@ def svg_to_mp4(svg_tree,
         result_clip.audio = audio_clip
     result_clip.write_videofile(output_filename, fps=fps)
 
+
 def main(input_filename, audio_filename, config_filename, output_filename):
 
     svg_tree = et.parse(input_filename)
