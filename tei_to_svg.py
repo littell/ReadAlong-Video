@@ -70,6 +70,7 @@ class BouncingBallBounceAnimation:
     def __init__(self, config, position1):
         self.config = config
         self.pos = position1
+        self.freeze = False
 
     def asSVG(self):
 
@@ -101,6 +102,8 @@ class BouncingBallBounceAnimation:
         animation.attrib["to"] = f"{self.pos.x} {self.pos.y}"
         animation.attrib["begin"] = "{:.3f}s".format(begin_time + half_dur)
         animation.attrib["dur"] = "{:.3f}s".format(half_dur)
+        if self.freeze:
+            animation.attrib["fill"] = "freeze"
         results.append(animation)        
 
         # squish downward
@@ -121,6 +124,8 @@ class BouncingBallBounceAnimation:
         animation.attrib["to"] = "1 1"
         animation.attrib["begin"] = "{:.3f}s".format(begin_time + half_dur)
         animation.attrib["dur"] = "{:.3f}s".format(half_dur)
+        if self.freeze:
+            animation.attrib["fill"] = "freeze"
         results.append(animation)
 
         return results
@@ -144,7 +149,8 @@ class BouncingBallArcAnimation:
         p2_y = "{:.3f}".format(self.position2.y)
 
         midpoint_x = (self.position1.x + self.position2.x) / 2
-        midpoint_y = self.position1.y - self.config.get("ball-target-ascent", 20)
+        midpoint_y = min(self.position1.y, self.position2.y) -\
+                         self.config.get("ball-target-ascent", 20)
 
         m_x = "{:.3f}".format(midpoint_x)
         m_y = "{:.3f}".format(midpoint_y)
@@ -162,7 +168,6 @@ class BouncingBallArcAnimation:
         animation.attrib["path"] = path
         animation.attrib["begin"] = "{:.3f}s".format(begin_time)
         animation.attrib["dur"] = "{:.3f}s".format(dur)
-        #animation.attrib["fill"] = "freeze"
         results.append(animation)
 
         
@@ -214,6 +219,7 @@ class BouncingBall:
         self.positions = {} # dict of timestamps/positions
         self.animations = []
         self.first_animation_begins = 10000000000000.0
+        #self.last_animation_ends = -1.0
 
     def addTimestamp(self, target_id, begin_time, end_time): 
         ''' the ball uses the timestamps to decide where to be
@@ -249,8 +255,13 @@ class BouncingBall:
         for time in begin_times:
             self.first_animation_begins = min(time, self.first_animation_begins)
             pos = self.positions[time]
+            #self.last_animation_ends = max(pos.end_time, self.last_animation_ends)
             animation = BouncingBallBounceAnimation(self.config, pos)
             self.animations.append(animation)
+
+        # freeze the final bounce animation
+        if self.animations: 
+            self.animations[-1].freeze = True
 
         # make arc animations
         for time1, time2 in zip(begin_times, begin_times[1:]):
@@ -277,8 +288,7 @@ class BouncingBall:
         animation.attrib["to"] = "-100000 -100000"
         animation.attrib["begin"] = "0.0"
         animation.attrib["dur"] = "{:.3f}s".format(self.first_animation_begins)
-        result.append(animation)        
-
+        result.append(animation)     
 
         for animation in self.animations:
             for subanimation in animation.asSVG():
@@ -942,14 +952,6 @@ class Slideshow(RASVComponent):
 
 
 def add_timestamps(smil_path, slideshow):
-    """ Takes a SMIL file and returns a list of SVG animation elements (e.g.
-    animate, animateMotion, etc.) at the appropriate times and targeting the
-    appropriate elements via xlink:herf attributes. 
-    
-    This won't work as coded if there are multiple sound files in the SMIL,
-    but at the moment we don't create such SMIL files anyway.
-    
-    """
 
     clip_src = ""
     tree = et.parse(smil_path)

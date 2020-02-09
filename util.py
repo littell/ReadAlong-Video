@@ -12,6 +12,10 @@ def load_json(input_path):
     with open(input_path, "r", encoding="utf-8") as fin:
         return json.load(fin, object_pairs_hook=OrderedDict)
 
+def load_xml(input_path):
+    with open(input_path, "rb") as fin:
+        return et.fromstring(fin.read())
+
 def save_xml(output_path, xml):
     ensure_dirs(output_path)
     with open(output_path, "wb") as fout:

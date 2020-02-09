@@ -827,9 +827,9 @@
     <animateTransform attributeName="transform" type="scale" from="1 1" to="1.2 0.8" begin="49.053s" dur="0.027s"/>
     <animateTransform attributeName="transform" type="scale" from="1.2 0.8" to="1 1" begin="49.080s" dur="0.027s"/>
     <animateTransform attributeName="transform" type="translate" from="1319.173828125 819.349609375" to="1319.173828125 821.749609375" begin="49.290s" dur="0.065s"/>
-    <animateTransform attributeName="transform" type="translate" from="1319.173828125 821.749609375" to="1319.173828125 819.349609375" begin="49.355s" dur="0.065s"/>
+    <animateTransform attributeName="transform" type="translate" from="1319.173828125 821.749609375" to="1319.173828125 819.349609375" begin="49.355s" dur="0.065s" fill="freeze"/>
     <animateTransform attributeName="transform" type="scale" from="1 1" to="1.2 0.8" begin="49.290s" dur="0.065s"/>
-    <animateTransform attributeName="transform" type="scale" from="1.2 0.8" to="1 1" begin="49.355s" dur="0.065s"/>
+    <animateTransform attributeName="transform" type="scale" from="1.2 0.8" to="1 1" begin="49.355s" dur="0.065s" fill="freeze"/>
     <animateMotion rotate="auto" path="M544.295,203.693 Q584.953,133.693 625.611,203.693" begin="1.397s" dur="0.203s"/>
     <animateTransform attributeName="transform" type="scale" from="1 1" to="1.2 0.8" begin="1.397s" dur="0.051s"/>
     <animateTransform attributeName="transform" type="scale" from="1.2 0.8" to="1.1 0.9" begin="1.448s" dur="0.051s"/>
@@ -1070,7 +1070,7 @@
     <animateTransform attributeName="transform" type="scale" from="1.2 0.8" to="1.1 0.9" begin="15.472s" dur="0.058s"/>
     <animateTransform attributeName="transform" type="scale" from="1.1 0.9" to="1.2 0.8" begin="15.530s" dur="0.058s"/>
     <animateTransform attributeName="transform" type="scale" from="1.2 0.8" to="1 1" begin="15.588s" dur="0.058s"/>
-    <animateMotion rotate="auto" path="M1319.174,819.350 Q931.734,749.350 544.295,203.693" begin="15.793s" dur="2.050s"/>
+    <animateMotion rotate="auto" path="M1319.174,819.350 Q931.734,133.693 544.295,203.693" begin="15.793s" dur="2.050s"/>
     <animateTransform attributeName="transform" type="scale" from="1 1" to="1.2 0.8" begin="15.793s" dur="0.513s"/>
     <animateTransform attributeName="transform" type="scale" from="1.2 0.8" to="1.1 0.9" begin="16.306s" dur="0.513s"/>
     <animateTransform attributeName="transform" type="scale" from="1.1 0.9" to="1.2 0.8" begin="16.818s" dur="0.513s"/>
@@ -1310,7 +1310,7 @@
     <animateTransform attributeName="transform" type="scale" from="1.2 0.8" to="1.1 0.9" begin="31.591s" dur="0.048s"/>
     <animateTransform attributeName="transform" type="scale" from="1.1 0.9" to="1.2 0.8" begin="31.638s" dur="0.048s"/>
     <animateTransform attributeName="transform" type="scale" from="1.2 0.8" to="1 1" begin="31.686s" dur="0.048s"/>
-    <animateMotion rotate="auto" path="M1319.174,819.350 Q931.734,749.350 544.295,203.693" begin="31.837s" dur="2.237s"/>
+    <animateMotion rotate="auto" path="M1319.174,819.350 Q931.734,133.693 544.295,203.693" begin="31.837s" dur="2.237s"/>
     <animateTransform attributeName="transform" type="scale" from="1 1" to="1.2 0.8" begin="31.837s" dur="0.559s"/>
     <animateTransform attributeName="transform" type="scale" from="1.2 0.8" to="1.1 0.9" begin="32.396s" dur="0.559s"/>
     <animateTransform attributeName="transform" type="scale" from="1.1 0.9" to="1.2 0.8" begin="32.955s" dur="0.559s"/>
