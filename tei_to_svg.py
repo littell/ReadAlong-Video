@@ -59,12 +59,6 @@ class BouncingBallPosition:
         self.x = x
         self.y = y
 
-    def adjusted_begin_time(self):
-        return self.begin_time + self.duration / 3
-
-    def adjusted_end_time(self):
-        return self.end_time - self.duration / 3
-
 class BouncingBallBounceAnimation:
 
     def __init__(self, config, position1):
@@ -74,8 +68,8 @@ class BouncingBallBounceAnimation:
 
     def asSVG(self):
 
-        begin_time = self.pos.adjusted_begin_time()
-        end_time = self.pos.adjusted_end_time()
+        begin_time = self.pos.begin_time
+        end_time = self.pos.end_time
         assert(end_time >= begin_time)
 
         half_dur = (end_time - begin_time) / 2
@@ -139,8 +133,8 @@ class BouncingBallArcAnimation:
 
     def asSVG(self):
 
-        begin_time = self.position1.adjusted_end_time()
-        end_time = self.position2.adjusted_begin_time()
+        begin_time = self.position1.end_time
+        end_time = self.position2.begin_time
         assert(end_time >= begin_time)
 
         p1_x = "{:.3f}".format(self.position1.x)
@@ -477,7 +471,8 @@ class Token(RASVComponent):
         result.append(animation)
         '''
 
-        third_dur = max(0.05, (self.end_time - self.begin_time) / 3)
+        dur = self.end_time - self.begin_time
+        third_dur = max(0.05, dur / 3)
         sixth_dur = third_dur / 2
 
         animation = et.Element("animate")
@@ -485,7 +480,7 @@ class Token(RASVComponent):
         animation.attrib["attributeType"] = "CSS"
         animation.attrib["from"] = self.config["text-color"]
         animation.attrib["to"] = self.config["highlight-color"]
-        animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + third_dur)
+        animation.attrib["begin"] = "{:.3f}s".format(self.begin_time)
         animation.attrib["dur"] = "{:.3f}s".format(third_dur)
         animation.attrib["fill"] = "freeze"  # if we were to fade out later, we don't
                                             # want to freeze here.
@@ -496,7 +491,7 @@ class Token(RASVComponent):
         animation.attrib["attributeType"] = "CSS"
         animation.attrib["from"] = self.config["text-color"]
         animation.attrib["to"] = self.config["highlight-color"]
-        animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + third_dur)
+        animation.attrib["begin"] = "{:.3f}s".format(self.begin_time)
         animation.attrib["dur"] = "{:.3f}s".format(third_dur)
         animation.attrib["fill"] = "freeze"  # if we were to fade out later, we don't
                                             # want to freeze here.
@@ -510,8 +505,8 @@ class Token(RASVComponent):
             animation.attrib["type"] = "scale"
             animation.attrib["from"] = "1 1"
             animation.attrib["to"] = "1 0.95"
-            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + third_dur)
-            animation.attrib["dur"] = "{:.3f}s".format(sixth_dur)
+            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time - third_dur)
+            animation.attrib["dur"] = "{:.3f}s".format(third_dur)
             result.append(animation)
 
             animation = et.Element("animateTransform")
@@ -519,8 +514,8 @@ class Token(RASVComponent):
             animation.attrib["type"] = "skewX"
             animation.attrib["from"] = "0"
             animation.attrib["to"] = "-3"
-            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + third_dur)
-            animation.attrib["dur"] = "{:.3f}s".format(sixth_dur)
+            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time - third_dur)
+            animation.attrib["dur"] = "{:.3f}s".format(third_dur)
             result.append(animation)
 
             # hold for a moment
@@ -529,8 +524,8 @@ class Token(RASVComponent):
             animation.attrib["type"] = "scale"
             animation.attrib["from"] = "1 0.95"
             animation.attrib["to"] = "1 0.95"
-            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + sixth_dur * 3)
-            animation.attrib["dur"] = "{:.3f}s".format(third_dur)
+            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time)
+            animation.attrib["dur"] = "{:.3f}s".format(dur)
             result.append(animation)
     
             animation = et.Element("animateTransform")
@@ -538,8 +533,8 @@ class Token(RASVComponent):
             animation.attrib["type"] = "skewX"
             animation.attrib["from"] = "-3"
             animation.attrib["to"] = "-3"
-            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + sixth_dur * 3)
-            animation.attrib["dur"] = "{:.3f}s".format(third_dur)
+            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time)
+            animation.attrib["dur"] = "{:.3f}s".format(dur)
             result.append(animation)
 
             # squish down and right as the ball is leaving, bringing skew back to 0
@@ -548,8 +543,8 @@ class Token(RASVComponent):
             animation.attrib["type"] = "scale"
             animation.attrib["from"] = "1 0.95"
             animation.attrib["to"] = "1 0.9"
-            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + sixth_dur * 5)
-            animation.attrib["dur"] = "{:.3f}s".format(sixth_dur)
+            animation.attrib["begin"] = "{:.3f}s".format(self.end_time)
+            animation.attrib["dur"] = "{:.3f}s".format(third_dur)
             result.append(animation)
     
             animation = et.Element("animateTransform")
@@ -557,10 +552,9 @@ class Token(RASVComponent):
             animation.attrib["type"] = "skewX"
             animation.attrib["from"] = "-3"
             animation.attrib["to"] = "0"
-            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + sixth_dur * 5)
-            animation.attrib["dur"] = "{:.3f}s".format(sixth_dur)
+            animation.attrib["begin"] = "{:.3f}s".format(self.end_time)
+            animation.attrib["dur"] = "{:.3f}s".format(third_dur)
             result.append(animation)
-
             
             # squish up and right as a bounce
             animation = et.Element("animateTransform")
@@ -568,8 +562,8 @@ class Token(RASVComponent):
             animation.attrib["type"] = "scale"
             animation.attrib["from"] = "1 0.9"
             animation.attrib["to"] = "1 0.95"
-            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + sixth_dur * 6)
-            animation.attrib["dur"] = "{:.3f}s".format(sixth_dur)
+            animation.attrib["begin"] = "{:.3f}s".format(self.end_time + third_dur)
+            animation.attrib["dur"] = "{:.3f}s".format(third_dur)
             result.append(animation)
     
             animation = et.Element("animateTransform")
@@ -577,8 +571,8 @@ class Token(RASVComponent):
             animation.attrib["type"] = "skewX"
             animation.attrib["from"] = "0"
             animation.attrib["to"] = "3"
-            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + sixth_dur * 6)
-            animation.attrib["dur"] = "{:.3f}s".format(sixth_dur)
+            animation.attrib["begin"] = "{:.3f}s".format(self.end_time + third_dur)
+            animation.attrib["dur"] = "{:.3f}s".format(third_dur)
             result.append(animation)
 
             # return to normal
@@ -587,8 +581,8 @@ class Token(RASVComponent):
             animation.attrib["type"] = "scale"
             animation.attrib["from"] = "1 0.95"
             animation.attrib["to"] = "1 1"
-            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + sixth_dur * 7)
-            animation.attrib["dur"] = "{:.3f}s".format(sixth_dur)
+            animation.attrib["begin"] = "{:.3f}s".format(self.end_time + third_dur * 2)
+            animation.attrib["dur"] = "{:.3f}s".format(third_dur)
             result.append(animation)
     
             animation = et.Element("animateTransform")
@@ -596,100 +590,9 @@ class Token(RASVComponent):
             animation.attrib["type"] = "skewX"
             animation.attrib["from"] = "3"
             animation.attrib["to"] = "0"
-            animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + sixth_dur * 7)
-            animation.attrib["dur"] = "{:.3f}s".format(sixth_dur)
+            animation.attrib["begin"] = "{:.3f}s".format(self.end_time + third_dur * 2)
+            animation.attrib["dur"] = "{:.3f}s".format(third_dur)
             result.append(animation)
-
-            # return to normal
-            
-        '''
-        a little bounce after the ball leaves, looks okay but not perfect,
-        taking out for now.  Bouncing based on a fraction of the token
-        duration leads to some bounces being too rapid and looking jerky.
-        Probably this is an animation that, if it's used at all, should 
-        be timed to the beat rather than the duration.
-
-        animation = et.Element("animateTransform")
-        animation.attrib["attributeName"] = "transform"
-        animation.attrib["type"] = "scale"
-        animation.attrib["from"] = "1 1"
-        animation.attrib["to"] = "1 0.9"
-        animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + third_dur * 3)
-        animation.attrib["dur"] = "{:.3f}s".format(third_dur)
-        result.append(animation)
-        
-        animation = et.Element("animateTransform")
-        animation.attrib["attributeName"] = "transform"
-        animation.attrib["type"] = "scale"
-        animation.attrib["from"] = "1 0.9"
-        animation.attrib["to"] = "1 1"
-        animation.attrib["begin"] = "{:.3f}s".format(self.begin_time + third_dur * 4)
-        animation.attrib["dur"] = "{:.3f}s".format(third_dur)
-        result.append(animation)
-        '''
-        '''
-        animation = et.Element("set")
-        animation.attrib["attributeName"] = "y"
-        animation.attrib["attributeType"] = "XML"
-        animation.attrib["to"] = "{:.3f}".format(apparent_y)
-        animation.attrib["begin"] = "{:.3f}s".format(self.begin_time)
-        animation.attrib["dur"] = "{:.3f}s".format(self.end_time - self.begin_time)
-        result.append(animation)
-        '''
-
-        '''
-        animation = et.Element("set")
-        animation.attrib["attributeName"] = "fill"
-        animation.attrib["attributeType"] = "CSS"
-        animation.attrib["to"] = self.config["highlight-color"]
-        animation.attrib["begin"] = "{:.3f}s".format(self.begin_time)
-        animation.attrib["dur"] = "{:.3f}s".format(self.end_time - self.begin_time)
-        animation.attrib["fill"] = "freeze"  # if we were to fade out later, we don't
-                                            # want to freeze here.
-        result.append(animation)
-
-        animation = et.Element("set")
-        animation.attrib["attributeName"] = "stroke"
-        animation.attrib["attributeType"] = "CSS"
-        animation.attrib["to"] = self.config["highlight-color"]
-        animation.attrib["begin"] = "{:.3f}s".format(self.begin_time)
-        animation.attrib["dur"] = "{:.3f}s".format(self.end_time - self.begin_time)
-        animation.attrib["fill"] = "freeze"
-        result.append(animation)
-        '''
-        # post-animation
-        #post_animation_dur = 0.2
-
-        '''
-        animation = et.Element("animate")
-        animation.attrib["attributeName"] = "y"
-        animation.attrib["attributeType"] = "XML"
-        animation.attrib["from"] = "{:.3f}".format(apparent_y)
-        animation.attrib["to"] = "{:.3f}".format(original_y)
-        animation.attrib["begin"] = "{:.3f}s".format(self.end_time)
-        animation.attrib["dur"] = "{:.3f}s".format(post_animation_dur)
-        result.append(animation)
-        '''
-
-        '''
-        animation = et.Element("animate")
-        animation.attrib["attributeName"] = "fill"
-        animation.attrib["attributeType"] = "CSS"
-        animation.attrib["from"] = self.config["highlight-color"]
-        animation.attrib["to"] = self.config["text-color"]
-        animation.attrib["begin"] = "{:.3f}s".format(self.end_time)
-        animation.attrib["dur"] = "{:.3f}s".format(post_animation_dur)
-        result.append(animation)
-
-        animation = et.Element("animate")
-        animation.attrib["attributeName"] = "stroke"
-        animation.attrib["attributeType"] = "CSS"
-        animation.attrib["from"] = self.config["highlight-color"]
-        animation.attrib["to"] = self.config["text-color"]
-        animation.attrib["begin"] = "{:.3f}s".format(self.end_time)
-        animation.attrib["dur"] = "{:.3f}s".format(post_animation_dur)
-        result.append(animation)
-        '''
 
         return result
 
@@ -951,11 +854,10 @@ class Slideshow(RASVComponent):
 
 
 
-def add_timestamps(smil_path, slideshow):
+def add_timestamps(smil, slideshow):
 
     clip_src = ""
-    tree = et.parse(smil_path)
-    for par_elem in xpath_default(tree, ".//i:par"):
+    for par_elem in xpath_default(smil, ".//i:par"):
         begin = 10000000000000
         end = -1
         for audio_elem in xpath_default(par_elem, ".//i:audio"):
@@ -973,11 +875,11 @@ def add_timestamps(smil_path, slideshow):
 
     slideshow.addMissingTimestamps()
 
-def tei_to_svg(input_tei_path, input_smil_path, config_path, total_duration=0.0):
+def tei_to_svg(input_tei_path, smil, config_path, total_duration=0.0):
     tree = et.parse(input_tei_path)
     config = load_json(config_path)
     slideshow = Slideshow(tree.getroot(), config)
     slideshow.layout()
-    add_timestamps(input_smil_path, slideshow)
+    add_timestamps(smil, slideshow)
     slideshow.pad_slides(total_duration)
     return slideshow.asSVG()

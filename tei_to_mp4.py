@@ -3,7 +3,8 @@ import argparse
 import logging
 from tei_to_svg import tei_to_svg
 from svg_to_mp4 import svg_to_mp4
-from util import save_xml, load_json
+from util import save_xml, load_json, load_xml
+from adjust_timing import adjust_timing
 import moviepy.editor as mp
 
 def tei_to_mp4(input_tei_path, 
@@ -33,7 +34,12 @@ def tei_to_mp4(input_tei_path,
     total_duration = audio_clip.duration
     fps = config.get("fps", 24)
 
-    svg = tei_to_svg(input_tei_path, input_smil_path, config_path, total_duration)
+    # adjust timing of the SMIL to reflect amplitude
+    smil = load_xml(input_smil_path)
+    smil_dir = os.path.dirname(input_smil_path)
+    smil = adjust_timing(smil, smil_dir)
+
+    svg = tei_to_svg(input_tei_path, smil, config_path, total_duration)
     save_xml("output.svg", svg)
     svg_to_mp4(svg, input_audio_path, config_path, output_path, fps)
     
