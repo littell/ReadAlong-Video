@@ -1,7 +1,7 @@
+librosa==0.6.3
 lxml==4.3.0
 moviepy==1.0.1
 numpy==1.17.2
 reportlab==3.5.32
 svg.path==4.0.2
 svglib==0.9.3
-librosa==0.6.3

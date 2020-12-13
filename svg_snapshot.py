@@ -113,36 +113,85 @@ def parse_path_str(path_str):
 
 NUMBER_SPLITTER = re.compile(r'([-+]?\d*\.?\d+|[-+]?\d+)')
 
-def interpolate_value_token(s1, s2, pos):
+
+def interpolate_value_token(s1, s2, pos, mod=0):
     """ If the values are floats, returns the linear interpolation of them
         at position pos.  If they're strings, but the same, returns the string.
-        If they're different, raises an exception. """
+        If they're different, raises an exception.
+        
+        The mod argument is for spaces that wrap around, like rotation.  If 
+        we're interpolating two values measured by degrees, we want to
+        interpret both the inputs and the result by modulus 360."""
 
     v1, v2 = 0.0, 0.0
+    assert(mod >= 0)
     try:
         v1 = float(s1)
         v2 = float(s2)
-        return "{:.3f}".format(v1 + pos * (v2 - v1))
+        if mod:
+            # note that Python negative mod makes this work; may not work
+            # the same in other languages
+            v1 %= mod
+            v2 %= mod
+            if abs(v1 + mod - v2) < abs(v1 - v2):
+                v1 += mod
+            if abs(v2 + mod - v1) < abs(v2 - v1):
+                v2 += mod
+        interpolation = v1 + pos * (v2 - v1)
+        if mod:
+            interpolation %= mod
+        return "{:.3f}".format(interpolation)
     except ValueError:
         if s1 == s2:
             return s1 
         else:
             raise Exception("Cannot interpolate between %s and %s", (s1, s2))
 
+def isfloat(value):
+  try:
+    float(value)
+    return True
+  except ValueError:
+    return False
 
-def interpolate_values(s1, s2, pos):
+def interpolate_values(s1, s2, pos, mod=None):
     """ Takes two strings representing values, like "150 150" and "0 0", or
         "rgb(255,255,0)" and "rgb(255,255,100)", and returns an interpolated version
-        like "75 75" or "rgb(255, 255, 50)".  Only linear interpolation is supported. """
+        like "75 75" or "rgb(255, 255, 50)".  Only linear interpolation is supported. 
+        For transforms like rotate where one of the values (degrees) wraps around,
+        a modulus argument lets you specify the range (360).  All of the numbersr
+        must have a modulus value -- that is, there need to be as many modulus values
+        as input numbers -- so if it's not a modular value, just put one here.  E.g.
+        rotate might be called like so:
+        
+        result = interpolate_values("0 50 50", "180 50 50", 0.3628, mod=(360,0,0)))
+        
+        """
 
-    parts1 = NUMBER_SPLITTER.split(s1)
-    parts2 = NUMBER_SPLITTER.split(s2)
+    splits1 = NUMBER_SPLITTER.split(s1)
+    splits2 = NUMBER_SPLITTER.split(s2)
+    
+    parts1 = [ s for s in splits1 if isfloat(s) ]
+    parts2 = [ s for s in splits2 if isfloat(s) ]
+    
     if len(parts1) != len(parts2):
         raise Exception("Cannot interpolate between %s and %s", (s1, s2))
 
-    results = [ interpolate_value_token(t1, t2, pos) 
-                    for t1, t2 in zip(parts1, parts2) ]
-    return "".join(results)
+    if mod is not None:
+        results = [ interpolate_value_token(t1, t2, pos, m) 
+                    for t1, t2, m in zip(parts1, parts2, mod) ]
+    else:
+        results = [ interpolate_value_token(t1, t2, pos) 
+                        for t1, t2 in zip(parts1, parts2) ]
+
+    result_str = ""
+    for s in splits1:
+        if isfloat(s):
+            result_str += results[0]
+            results = results[1:]
+        else:
+            result_str += s
+    return result_str
 
 
 def xpath_id(svg, id):
@@ -162,7 +211,7 @@ class Animator:
         tags like <animate>, <animateTransform>, etc.  Handles parsing of the basic attributes
         and time calculations that are common to all the animation tags. """
 
-    def __init__(self, elem, target_id=""):
+    def __init__(self, elem, svg, target_id=""):
         self.elem = elem
         self.begin = parse_time(elem.attrib["begin"])
         self.dur = parse_time(elem.attrib["dur"])
@@ -173,8 +222,27 @@ class Animator:
         else:
             self.target_id = target_id 
 
-    def get_target(self, svg, ):
-        return xpath_id(svg, self.target_id)
+        self.target = xpath_id(svg, self.target_id)
+        self.target_attrib = deepcopy(self.target.attrib)
+
+    def get_target_pos(self):
+        if self.target.tag == "circle":
+            x_label, y_label = "cx", "cy"
+        else:
+            x_label, y_label = "x", "y"
+
+        return (float(self.target.attrib.get(x_label, 0.0)), 
+                    float(self.target.attrib.get(y_label, 0.0)))
+
+    def reset_target(self):
+        # first reset the attributes
+        for key in self.target.attrib:
+            del self.target.attrib[key]
+        for key, value in self.target_attrib.items():
+            self.target.attrib[key] = value
+
+    def get_target(self):
+        return self.target
 
     def get_time_position(self, t):
         """ Returns how far along in this animation element is time t, as a
@@ -224,34 +292,44 @@ class Animator:
 
 class TransformAnimator(Animator):
     """ Interprets the <animateTransform> element """
-    def __init__(self, elem, target_id):
-        Animator.__init__(self, elem, target_id)
+    def __init__(self, elem, svg, target_id):
+        Animator.__init__(self, elem, svg, target_id)
         self.attrib_name = elem.attrib["attributeName"]
     
         self.attrib_from = elem.attrib["from"]
         self.attrib_to = elem.attrib["to"]
         self.transform_type = elem.attrib["type"]
 
-    def apply(self, svg, t):
+    def apply(self, t):
 
-        target = self.get_target(svg)
+        target = self.get_target()
 
         time_position = self.get_time_position(t)
         if (time_position < 0):
             return
 
-        result = interpolate_values(self.attrib_from, self.attrib_to, time_position)
+        if self.transform_type == "rotate":
+            result = interpolate_values(self.attrib_from, self.attrib_to, time_position, (360,0,0))
+        else:
+            result = interpolate_values(self.attrib_from, self.attrib_to, time_position)
         result = self.transform_type + "(" + result + ")"
 
-        if self.attrib_name in target.attrib:
-            target.attrib[self.attrib_name] += " " + result
+        if self.transform_type in ["translate", "rotate"]:
+            data_attrib_name = "data-motion-" + self.transform_type
+            if  data_attrib_name in target.attrib:
+                target.attrib[data_attrib_name] += " " + result
+            else:
+                target.attrib[data_attrib_name] = result
         else:
-            target.attrib[self.attrib_name] = result
+            if self.attrib_name in target.attrib:
+                target.attrib[self.attrib_name] += " " + result
+            else:
+                target.attrib[self.attrib_name] = result
 
 class MotionAnimator(Animator):
     """ Interprets the <animateMotion> element """
-    def __init__(self, elem, target_id):
-        Animator.__init__(self, elem, target_id)
+    def __init__(self, elem, svg, target_id):
+        Animator.__init__(self, elem, svg, target_id)
 
         self.path = None
         self.path_id = ""
@@ -270,8 +348,8 @@ class MotionAnimator(Animator):
         self.attrib_rotate = elem.attrib.get("rotate", "")
 
     
-    def apply(self, svg, t):
-        target = self.get_target(svg)
+    def apply(self, t):
+        target = self.get_target()
 
         time_position = self.get_time_position(t)
         if (time_position < 0):
@@ -287,17 +365,7 @@ class MotionAnimator(Animator):
         
         point = path.point(time_position)
 
-        if target.tag == "circle":
-            x_label, y_label = "cx", "cy"
-        else:
-            x_label, y_label = "x", "y"
-
-        if "data-original-x" not in target.attrib:
-            target.attrib["data-original-x"] = target.attrib.get(x_label, 0.0)
-            target.attrib["data-original-y"] = target.attrib.get(y_label, 0.0)
-
-        current_x = float(target.attrib.get("data-original-x", 0.0))
-        current_y = float(target.attrib.get("data-original-y", 0.0))
+        current_x, current_y = self.get_target_pos()
         value_x = "{:.3f}".format(current_x + point.real)
         value_y = "{:.3f}".format(current_y + point.imag)
 
@@ -306,8 +374,10 @@ class MotionAnimator(Animator):
 
         translate_str = f"translate({value_x} {value_y})"
         
-        target.attrib["data-motion-translate"] = translate_str
-
+        if  "data-motion-translate" in target.attrib:
+            target.attrib["data-motion-translate"] += " " + translate_str
+        else:
+            target.attrib["data-motion-translate"] = translate_str
         #if "transform" in target.attrib:
         #    target.attrib["transform"] += " " + translate_str
         #else:
@@ -326,26 +396,32 @@ class MotionAnimator(Animator):
             angle = math.degrees(angle)
             if self.attrib_rotate == "auto-reverse":
                 angle += 180.0
+
+            #print(angle)
             
-            rotate_str = "rotate(" + "{:.3f}".format(angle) + "," + value_x + "," + value_y + ")"
+            rotate_str = "rotate(" + "{:.3f}".format(angle) + " " + value_x + " " + value_y + ")"
+            #print(rotate_str)
             #if "transform" in target.attrib:
             #    target.attrib["transform"] += " " + rotate_str
             #else:
             #    target.attrib["transform"] = rotate_str
 
-            target.attrib["data-motion-rotate"] = rotate_str
+            if  "data-motion-rotate" in target.attrib:
+                target.attrib["data-motion-rotate"] += " " + rotate_str
+            else:
+                target.attrib["data-motion-rotate"] = rotate_str
 
 class StaticValueAnimator(Animator):
     """ Interprets the <set> element """
 
-    def __init__(self, elem, target_id):
-        Animator.__init__(self, elem, target_id)
+    def __init__(self, elem,  svg, target_id):
+        Animator.__init__(self, elem, svg, target_id)
         self.attrib_name = elem.attrib.get("attributeName")
         self.attrib_to = elem.attrib["to"]
 
-    def apply(self, svg, t):
+    def apply(self, t):
 
-        target = self.get_target(svg)
+        target = self.get_target()
         
         time_position = self.get_time_position(t)
         if (time_position < 0):  # animation doesn't apply right now
@@ -356,15 +432,15 @@ class StaticValueAnimator(Animator):
 class ValueAnimator(Animator):
     """ Interprets the <animate> element """
 
-    def __init__(self, elem, target_id):
-        Animator.__init__(self, elem, target_id)
+    def __init__(self, elem, svg, target_id):
+        Animator.__init__(self, elem, svg, target_id)
         self.attrib_name = elem.attrib.get("attributeName")
         self.attrib_from = elem.attrib["from"]
         self.attrib_to = elem.attrib["to"]
         
-    def apply(self, svg, t):
+    def apply(self, t):
 
-        target = self.get_target(svg)
+        target = self.get_target()
 
         time_position = self.get_time_position(t)
         if (time_position < 0): # animation doesn't apply right now
@@ -372,22 +448,22 @@ class ValueAnimator(Animator):
         value = interpolate_values(self.attrib_from, self.attrib_to, time_position)
         target.attrib[self.attrib_name] = value
 
-def make_animator(elem, target):
+def make_animator(elem, svg, target):
 
     if elem.tag in ANIMATE_TAGS:
-        return ValueAnimator(elem, target)
+        return ValueAnimator(elem, svg, target)
     if elem.tag in SET_TAGS:
-        return StaticValueAnimator(elem, target)
+        return StaticValueAnimator(elem, svg, target)
     if elem.tag in MOTION_TAGS:
-        return MotionAnimator(elem, target)
+        return MotionAnimator(elem, svg, target)
     if elem.tag in ANIMATE_TRANSFORM_TAGS:
-        return TransformAnimator(elem, target)
+        return TransformAnimator(elem, svg, target)
 
     raise Exception("Invalid tag for animation: %s" % elem.tag)
 
 NUM_IDS = 0
 
-def get_animators(elem):
+def get_animators(elem, svg):
     global NUM_IDS
 
     animators = []
@@ -399,10 +475,10 @@ def get_animators(elem):
                 elem.attrib["id"] = "svgSnapshotElement" + str(NUM_IDS)
                 NUM_IDS += 1
             elem.remove(child)
-            animator = make_animator(child, elem.attrib["id"])
+            animator = make_animator(child, svg, elem.attrib["id"])
             animators.append(animator)
         else:
-            animators += get_animators(child)
+            animators += get_animators(child, svg)
 
     return animators
 
@@ -424,14 +500,15 @@ class SnapshotSVG:
 
     def __init__(self, svg):
         self.svg = svg if isinstance(svg, et._Element) else svg.getroot()
-        self.animators = get_animators(self.svg)
+        self.animators = get_animators(self.svg, self.svg)
         self.animators = sorted(self.animators, key=lambda a:a.begin)
 
     def __getitem__(self, t):    
         """ Gives a static SVG element corresponding to 
         an animated SVG element time t """
-        result = deepcopy(self.svg)
         for animator in self.animators:
-            animator.apply(result, t)
-        motion_compile(result)
-        return result
+            animator.reset_target()
+        for animator in self.animators:
+            animator.apply(t)
+        motion_compile(self.svg)
+        return self.svg

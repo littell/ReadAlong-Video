@@ -1,0 +1,21 @@
+{
+    "width": 1920,
+    "height": 1080,
+    "margin-left": 100,
+    "margin-right": 100,
+    "text-color":  "rgb(225,225,225)",
+    "highlight-color": "rgb(244,171,186)",
+    "font": "NunitoSemiBold",
+    "font-size": 100,
+    "line-height": 2.5,
+    "bg-image": "images/bg-wood-1080.png",
+    "fps": 120,
+    "ball-clearance": 0,
+    "ball-target-ascent": 100,
+    "ball-radius": 40,
+    "ball-squish": 1.5,
+    "text-squish": 0.8,
+    "text-bend": 5,
+    "ball-image": "images/svg/1f437.svg",
+    "ball-image-scale": 1.5
+} 
